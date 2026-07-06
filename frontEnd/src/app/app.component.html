@@ -31,11 +31,9 @@
 </div>
 
 <div class="content" role="main">
-  <app-search-bar (sendPreviousBody)="receivePreviousBody($event)" [previousBody]="previousBody"
-    (sendSongListtoTable)="receiveSongList($event)" [currentSongList]="songList">
+  <app-search-bar [currentSongList]="songList">
   </app-search-bar>
-  <app-song-table (sendPreviousBody)="receivePreviousBody($event)" [previousBody]="previousBody"
-    (sendSongListtoTable)="receiveSongList($event)" (mp3PlayerClicked)="playMP3($event)" [songTable]="songList"
+  <app-song-table (mp3PlayerClicked)="playMP3($event)" [songTable]="songList"
     [animeTitleLang]="animeTitleLang">
   </app-song-table>
   <p class="amq-disclaimer">

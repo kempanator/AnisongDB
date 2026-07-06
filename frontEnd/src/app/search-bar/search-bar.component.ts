@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, Input, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, OnDestroy, Input } from '@angular/core';
 import { Observable, Subscription } from 'rxjs';
 import { RankedStatus, SearchRequestService } from '../core/services/search-request.service';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
@@ -15,18 +15,7 @@ export class SearchBarComponent implements OnInit, OnDestroy {
     readonly searchRequestService: SearchRequestService,
   ) {}
 
-  @Input() previousBody: any;
   @Input() currentSongList: any;
-
-  @Output() sendSongListtoTable = new EventEmitter();
-  sendSongList(currentSongList: any) {
-    this.sendSongListtoTable.emit(currentSongList);
-  }
-
-  @Output() sendPreviousBody = new EventEmitter();
-  sendPrevBody(body: any) {
-    this.sendPreviousBody.emit(body);
-  }
 
   mainFilter: string = '';
   animeFilter: string = '';
@@ -74,16 +63,21 @@ export class SearchBarComponent implements OnInit, OnDestroy {
         this.rankedStatus = status;
       },
     );
-    this.currentSongList = this.searchRequestService
-      .getFirstNRequest()
-      .subscribe((data) => {
-        this.currentSongList = data;
-        this.sendSongList(this.currentSongList);
-      });
+    this.searchRequestService.runSearch(
+      SearchRequestService.INITIAL_RANDOM_BODY,
+      this.searchRequestService.getFirstNRequest(),
+    );
   }
 
   ngOnDestroy(): void {
     this.rankedStatusSubscription?.unsubscribe();
+    if (this.downloadObjectUrl) {
+      URL.revokeObjectURL(this.downloadObjectUrl);
+    }
+  }
+
+  formatRankedRemaining(status: RankedStatus): string {
+    return this.searchRequestService.formatRankedRemaining(status);
   }
 
   private songFilterOptions() {
@@ -300,19 +294,10 @@ export class SearchBarComponent implements OnInit, OnDestroy {
       }
     }
 
-    if (JSON.stringify(body) === JSON.stringify(this.previousBody)) {
-      return;
-    }
-
-    this.previousBody = body;
-    this.sendPrevBody(body);
-
-    const request$ = this.searchRequestForBody(body);
-
-    this.currentSongList = request$.subscribe((data) => {
-      this.currentSongList = data;
-      this.sendSongList(this.currentSongList);
-    });
+    this.searchRequestService.runSearch(
+      body,
+      this.searchRequestForBody(body),
+    );
   }
 
   selectFilterCombinationChangeHandler(event: any) {
@@ -321,10 +306,19 @@ export class SearchBarComponent implements OnInit, OnDestroy {
 
   downloadJsonHref: SafeUrl = '';
   downloadFileName: string = 'Init_SongList.json';
+  private downloadObjectUrl: string | null = null;
 
   openJsonHelp() {
     window.open(
       'https://github.com/xSardine/AMQ-Artists-DB/tree/main/misc_scripts#misc-scripts',
+      '_blank',
+      'noopener',
+    );
+  }
+
+  openFiltersHelp() {
+    window.open(
+      'https://github.com/xSardine/AMQ-Artists-DB#filters',
       '_blank',
       'noopener',
     );
@@ -352,11 +346,12 @@ export class SearchBarComponent implements OnInit, OnDestroy {
     let theJSON = JSON.stringify(this.currentSongList);
     let blob = new Blob([theJSON], { type: 'text/json' });
 
-    // Create a URL for the blob and sanitize it
-    let url = window.URL.createObjectURL(blob);
-    let uri = this.sanitizer.bypassSecurityTrustUrl(url);
-
-    // Set the `downloadJsonHref` property to the sanitized URL
-    this.downloadJsonHref = uri;
+    if (this.downloadObjectUrl) {
+      URL.revokeObjectURL(this.downloadObjectUrl);
+    }
+    this.downloadObjectUrl = URL.createObjectURL(blob);
+    this.downloadJsonHref = this.sanitizer.bypassSecurityTrustUrl(
+      this.downloadObjectUrl,
+    );
   }
 }

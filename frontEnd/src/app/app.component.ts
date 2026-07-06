@@ -1,5 +1,9 @@
-import { Component, ViewChild, AfterViewInit, ElementRef } from '@angular/core';
+import { Component, ViewChild, AfterViewInit, OnDestroy, OnInit, ElementRef } from '@angular/core';
 import { MediaPlayer, LocalMediaStorage } from 'vidstack';
+import { Subscription } from 'rxjs';
+import { SearchRequestService } from './core/services/search-request.service';
+import { DistServerService } from './core/services/dist-server.service';
+import { ThemeService } from './core/services/theme.service';
 
 class CustomLocalMediaStorage extends LocalMediaStorage {
   // Override to prevent automatic timestamp retrieval
@@ -19,32 +23,38 @@ class CustomLocalMediaStorage extends LocalMediaStorage {
   styleUrls: ['./app.component.scss'],
   standalone: false,
 })
-export class AppComponent implements AfterViewInit {
+export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('audioPlayerRef', { static: false }) audioPlayerRef!: ElementRef;
   audioPlayer: MediaPlayer = this.audioPlayerRef?.nativeElement;
   customLocalMediaStorage = new CustomLocalMediaStorage();
 
+  constructor(
+    private searchRequestService: SearchRequestService,
+    private distServerService: DistServerService,
+    private themeService: ThemeService,
+  ) {}
+
   title = 'anisongDB';
-  url: any = '';
   songList: any;
-  previousBody: any;
   currentlyPlayingArtist: any = '';
   currentlyPlayingSongName: any = '';
   animeTitleLang: string = 'JP';
 
   // Keys for storing player preferences in localStorage
   private readonly langKey = 'animeTitleLang';
-
-  receiveSongList($event: any) {
-    this.songList = $event;
-  }
-
-  receivePreviousBody($event: any) {
-    this.previousBody = $event;
-  }
+  private songListSubscription: Subscription | null = null;
 
   ngOnInit() {
     this.initializeTableSettings();
+    this.songListSubscription = this.searchRequestService.songList$.subscribe(
+      (data) => {
+        this.songList = data;
+      },
+    );
+  }
+
+  ngOnDestroy() {
+    this.songListSubscription?.unsubscribe();
   }
 
   private initializeTableSettings() {
@@ -107,7 +117,7 @@ export class AppComponent implements AfterViewInit {
       setTimeout(() => {
         // Construct the full URL for the MP3 file
 
-        const songUrl = `https://naedist.animemusicquiz.com/${song.audio}`;
+        const songUrl = this.distServerService.getDistUrl(song.audio);
 
         // This set variables so that the song name and artist can be displayed on the player <div>
         this.currentlyPlayingArtist = song.songArtist;

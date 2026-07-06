@@ -1,5 +1,6 @@
-import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, OnChanges, SimpleChanges, ChangeDetectorRef } from '@angular/core';
 import { SearchRequestService, RankedStatus } from '../core/services/search-request.service';
+import { DistServerService } from '../core/services/dist-server.service';
 import { Subscription } from 'rxjs';
 
 type SongColumnDefinition = {
@@ -72,14 +73,18 @@ type SongDistLink = {
   standalone: false,
 })
 export class SongTableComponent implements OnInit, OnDestroy, OnChanges {
-  constructor(private searchRequestService: SearchRequestService) {}
+  constructor(
+    private searchRequestService: SearchRequestService,
+    private distServerService: DistServerService,
+    private changeDetectorRef: ChangeDetectorRef,
+  ) {}
 
   searchErrorMessage: string | null = null;
   private searchErrorSubscription: Subscription | null = null;
   private rankedStatusSubscription: Subscription | null = null;
+  private distServerSubscription: Subscription | null = null;
 
   @Input() songTable: any;
-  @Input() previousBody: any;
   @Input() animeTitleLang: any;
 
   tableHeaders: string[] = [];
@@ -111,8 +116,6 @@ export class SongTableComponent implements OnInit, OnDestroy, OnChanges {
     { key: 'Play Audio', header: 'Play', defaultVisible: true, sortable: false },
     { key: 'Delete Row', header: 'Del', defaultVisible: true, sortable: false },
   ];
-
-  private readonly naedistBase = 'https://naedist.animemusicquiz.com/';
 
   readonly animeListSites: AnimeListSite[] = [
     {
@@ -175,16 +178,6 @@ export class SongTableComponent implements OnInit, OnDestroy, OnChanges {
     this.mp3PlayerClicked.emit(song);
   }
 
-  @Output() sendSongListtoTable = new EventEmitter();
-  sendSongList(currentSongList: any) {
-    this.sendSongListtoTable.emit(currentSongList);
-  }
-
-  @Output() sendPreviousBody = new EventEmitter();
-  sendPrevBody(body: any) {
-    this.sendPreviousBody.emit(body);
-  }
-
   ngOnInit() {
     this.initializeColumns();
     this.searchErrorSubscription = this.searchRequestService.searchError$.subscribe(
@@ -197,16 +190,24 @@ export class SongTableComponent implements OnInit, OnDestroy, OnChanges {
         this.rankedStatus = status;
       },
     );
+    this.distServerSubscription = this.distServerService.distServer$.subscribe(() => {
+      if (this.showSongInfoPopup) {
+        const song = this.songTable?.[this.songInfoPopupIndex];
+        if (song) {
+          this.refreshSongInfoDistLinks(song);
+        }
+      }
+      this.changeDetectorRef.markForCheck();
+    });
   }
 
   ngOnDestroy() {
     this.searchErrorSubscription?.unsubscribe();
     this.rankedStatusSubscription?.unsubscribe();
+    this.distServerSubscription?.unsubscribe();
   }
 
   ngOnChanges(changes: SimpleChanges) {
-    this.initializeColumns();
-
     if (changes['songTable']) {
       this.ascendingOrder = false;
       this.refreshTableStats();
@@ -266,11 +267,12 @@ export class SongTableComponent implements OnInit, OnDestroy, OnChanges {
   onHeaderClick(columnKey: string) {
     if (this.isColumnSortable(columnKey)) {
       this.sortFunction(columnKey);
+      this.searchRequestService.markSongListModified();
     }
   }
 
   getDistLink(filename: string | null | undefined) {
-    return filename ? `${this.naedistBase}${filename}` : '';
+    return this.distServerService.getDistUrl(filename);
   }
 
   shouldShowSongLink(song: any, link: SongDistLink) {
@@ -359,7 +361,6 @@ export class SongTableComponent implements OnInit, OnDestroy, OnChanges {
   showSongInfoPopup: boolean = false;
   songInfoPopupIndex = -1;
   doubleClickPreventer: boolean = false;
-  animeJPName: string = '';
 
   popUpannId: string = '';
   popUpVintage: string = '';
@@ -383,7 +384,6 @@ export class SongTableComponent implements OnInit, OnDestroy, OnChanges {
   popUpAnidbID: string = '';
   popUpAnilistID: string = '';
   popUpKitsuID: string = '';
-  popUpAnime: string = '';
   popUpHDLink: string = '';
   popUpHDName: string = '';
   popUpMDLink: string = '';
@@ -424,6 +424,10 @@ export class SongTableComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   formatSongLength(length: string | number | null | undefined) {
+    if (length == null || length === '') {
+      return '';
+    }
+
     const seconds = Math.round(Number(length));
     if (!Number.isFinite(seconds) || seconds < 0) {
       return '';
@@ -449,7 +453,7 @@ export class SongTableComponent implements OnInit, OnDestroy, OnChanges {
 
     const total = diffs.reduce((sum, item) => sum + item, 0);
 
-    return +(total / diffs.length).toFixed(1);
+    return Number((total / diffs.length).toFixed(1));
   }
 
   refreshTableStats() {
@@ -471,7 +475,7 @@ export class SongTableComponent implements OnInit, OnDestroy, OnChanges {
         animeIds.add(song.annId);
       }
 
-      for (const artistId of this.collectSongArtistIds(song.artists)) {
+      for (const artistId of this.collectPersonIds(song.artists)) {
         artistIds.add(artistId);
       }
 
@@ -486,7 +490,7 @@ export class SongTableComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     const avgLength = lengths.length
-      ? +(lengths.reduce((sum, value) => sum + value, 0) / lengths.length).toFixed(1)
+      ? Number((lengths.reduce((sum, value) => sum + value, 0) / lengths.length).toFixed(1))
       : null;
 
     const songCount = this.songTable.length;
@@ -545,21 +549,21 @@ export class SongTableComponent implements OnInit, OnDestroy, OnChanges {
     counts[label] = (counts[label] ?? 0) + 1;
   }
 
-  private collectSongArtistIds(artists: any): number[] {
-    if (!artists) {
+  private collectPersonIds(people: any): number[] {
+    if (!people) {
       return [];
     }
 
-    if (artists.id != null) {
-      return [artists.id];
+    if (people.id != null) {
+      return [people.id];
     }
 
-    if (Array.isArray(artists)) {
-      return artists.map((artist) => artist?.id).filter((id) => id != null);
+    if (Array.isArray(people)) {
+      return people.map((person) => person?.id).filter((id) => id != null);
     }
 
-    return Object.values(artists)
-      .map((artist: any) => artist?.id)
+    return Object.values(people)
+      .map((person: any) => person?.id)
       .filter((id) => id != null);
   }
 
@@ -571,7 +575,7 @@ export class SongTableComponent implements OnInit, OnDestroy, OnChanges {
     const entries = Object.entries(counts).map(([label, count]) => ({
       label,
       count,
-      percent: total ? +((count / total) * 100).toFixed(1) : 0,
+      percent: total ? Number(((count / total) * 100).toFixed(1)) : 0,
     }));
 
     if (sortLabels?.length) {
@@ -897,10 +901,8 @@ export class SongTableComponent implements OnInit, OnDestroy, OnChanges {
         return song.songCategory || '-';
       case 'Difficulty':
         return song.songDifficulty != null ? `${song.songDifficulty}%` : '-';
-      case 'Length': {
-        const formatted = this.formatSongLength(song.songLength);
-        return formatted || '-';
-      }
+      case 'Length':
+        return this.formatSongLength(song.songLength) || '-';
       case 'Composer':
         return song.songComposer || '-';
       case 'Arranger':
@@ -975,8 +977,6 @@ export class SongTableComponent implements OnInit, OnDestroy, OnChanges {
     this.popUpAnimeJPName = song.animeJPName;
     this.popUpAnimeAltName = song.animeAltName || [];
     this.popUpannSongId = song.annSongId != -1 ? song.annSongId : null;
-    this.popUpAnime =
-      this.animeTitleLang == 'JP' ? song.animeJPName : song.animeENName;
     this.popUpMalID = song.linked_ids.myanimelist;
     this.popUpAnidbID = song.linked_ids.anidb;
     this.popUpAnilistID = song.linked_ids.anilist;
@@ -992,92 +992,53 @@ export class SongTableComponent implements OnInit, OnDestroy, OnChanges {
     this.popUpSongComposer = song.songComposer;
     this.popUpSongArranger = song.songArranger;
     this.popUpHDName = song.HQ;
-    this.popUpHDLink = song.HQ
-      ? 'https://naedist.animemusicquiz.com/' + song.HQ
-      : '';
     this.popUpMDName = song.MQ;
-    this.popUpMDLink = song.MQ
-      ? 'https://naedist.animemusicquiz.com/' + song.MQ
-      : '';
     this.popUpAudioName = song.audio;
-    this.popUpAudioLink = song.audio
-      ? 'https://naedist.animemusicquiz.com/' + song.audio
-      : '';
+    this.refreshSongInfoDistLinks(song);
     this.popUpArtistsInfo = this.sortArtists(song.artists);
     this.popUpComposersInfo = song.composers;
     this.popUpArrangersInfo = song.arrangers;
-    this.animeJPName = song.animeJPName;
+  }
+
+  private refreshSongInfoDistLinks(song: any) {
+    this.popUpHDLink = this.getDistLink(song.HQ);
+    this.popUpMDLink = this.getDistLink(song.MQ);
+    this.popUpAudioLink = this.getDistLink(song.audio);
   }
 
   deleteRowEntry(song: any) {
     const id = this.songTable.findIndex((obj: any) => obj === song);
+    if (id < 0) {
+      return;
+    }
     this.songTable.splice(id, 1);
     this.refreshTableStats();
+    this.searchRequestService.markSongListModified();
   }
 
   searchArtistIds(artists: any) {
-    let id_arr;
-    if (artists.id) {
-      id_arr = [artists.id];
-    } else {
-      id_arr = [];
-      for (let artist in artists) {
-        id_arr.push(artists[artist].id);
-      }
-    }
-
-    let body = {
-      artist_ids: id_arr,
+    const body = {
+      artist_ids: this.collectPersonIds(artists),
       group_granularity: 0,
       max_other_artist: 99,
     };
 
-    if (JSON.stringify(body) === JSON.stringify(this.previousBody)) {
-      return;
-    }
-
-    this.previousBody = body;
-    this.sendPrevBody(body);
-
-    let currentSongList;
-    currentSongList = this.searchRequestService
-      .artistIdsSearchRequest(body)
-      .subscribe((data) => {
-        currentSongList = data;
-        this.sendSongList(currentSongList);
-      });
+    this.searchRequestService.runSearch(
+      body,
+      this.searchRequestService.artistIdsSearchRequest(body),
+    );
   }
 
   searchComposerIds(composers: any) {
-    let id_arr;
-    if (composers.id) {
-      id_arr = [composers.id];
-    } else {
-      id_arr = [];
-      for (let composer in composers) {
-        id_arr.push(composers[composer].id);
-      }
-    }
-
-    let body = {
-      composer_ids: id_arr,
+    const body = {
+      composer_ids: this.collectPersonIds(composers),
       arrangement: true,
     };
 
-    if (JSON.stringify(body) === JSON.stringify(this.previousBody)) {
-      return;
-    }
-
-    this.previousBody = body;
-    this.sendPrevBody(body);
-
-    let currentSongList;
-    currentSongList = this.searchRequestService
-      .composerIdsSearchRequest(body)
-      .subscribe((data) => {
-        currentSongList = data;
-        this.sendSongList(currentSongList);
-      });
+    this.searchRequestService.runSearch(
+      body,
+      this.searchRequestService.composerIdsSearchRequest(body),
+    );
   }
 
   searchSeason(season: string) {
@@ -1085,48 +1046,24 @@ export class SongTableComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    let body = {
-      season,
-    };
+    const body = { season };
 
-    if (JSON.stringify(body) === JSON.stringify(this.previousBody)) {
-      this.closeSongInfoPopup();
-      return;
-    }
-
-    this.previousBody = body;
-    this.sendPrevBody(body);
     this.closeSongInfoPopup();
-
-    let currentSongList;
-    currentSongList = this.searchRequestService
-      .seasonRequest(body)
-      .subscribe((data) => {
-        currentSongList = data;
-        this.sendSongList(currentSongList);
-      });
+    this.searchRequestService.runSearch(
+      body,
+      this.searchRequestService.seasonRequest(body),
+    );
   }
 
   searchAnnId(id: any) {
-    let body = {
+    const body = {
       ann_ids: [id],
     };
 
-    if (JSON.stringify(body) === JSON.stringify(this.previousBody)) {
-      this.closeSongInfoPopup();
-      return;
-    }
-
-    this.previousBody = body;
-    this.sendPrevBody(body);
     this.closeSongInfoPopup();
-
-    let currentSongList;
-    currentSongList = this.searchRequestService
-      .annIdsSearchRequest(body)
-      .subscribe((data) => {
-        currentSongList = data;
-        this.sendSongList(currentSongList);
-      });
+    this.searchRequestService.runSearch(
+      body,
+      this.searchRequestService.annIdsSearchRequest(body),
+    );
   }
 }
