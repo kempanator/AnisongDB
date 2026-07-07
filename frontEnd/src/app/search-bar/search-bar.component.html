@@ -3,7 +3,7 @@
   <span class="ranked-banner-text">
     <span class="ranked-banner-title">AMQ Ranked</span>
     <span class="ranked-banner-region">{{ rankedStatus.region }}</span>
-    Some functionality disabled – <strong>{{ searchRequestService.formatRankedRemaining(rankedStatus) }}</strong> remaining
+    Some functionality disabled – <strong>{{ formatRankedRemaining(rankedStatus) }}</strong> remaining
   </span>
   <button
     type="button"
@@ -56,6 +56,8 @@
       [title]="rankedStatus.active ? 'Search by anime' : 'Search by anime, song name or artist'"
       class="textInputFilter main-search-input"
       type="search"
+      maxlength="500"
+      [value]="mainFilter"
       (keyup.enter)="onSearchCallKey()"
       (input)="mainFilter = mainFilterInput.value"
     />
@@ -179,7 +181,7 @@
         id="search-adv-help-filters"
         class="helpButton"
         title="Help understanding settings"
-        onClick="window.open('https://github.com/xSardine/AMQ-Artists-DB#filters','_blank')"
+        (click)="openFiltersHelp()"
       >
         <i class="fa fa-question-circle"></i>
       </span>
@@ -191,6 +193,7 @@
         #animeFilterInput
         class="textInputFilter filter-input"
         type="search"
+        maxlength="500"
         placeholder="Search by anime..."
         title="Search by anime name"
         (keyup.enter)="onSearchCallKey()"
@@ -219,6 +222,7 @@
         placeholder="Search by song name..."
         title="Search by song name"
         type="search"
+        maxlength="500"
         (keyup.enter)="onSearchCallKey()"
         (input)="songNameFilter = songNameFilterInput.value"
       />
@@ -244,6 +248,7 @@
         class="textInputFilter filter-input"
         placeholder="Search by artist..."
         type="search"
+        maxlength="500"
         title="Search by artist"
         (keyup.enter)="onSearchCallKey()"
         (input)="artistFilter = artistFilterInput.value"
@@ -270,6 +275,7 @@
         class="textInputFilter filter-input"
         placeholder="Search by composer..."
         type="search"
+        maxlength="500"
         title="Search by composer"
         (keyup.enter)="onSearchCallKey()"
         (input)="composerFilter = composerFilterInput.value"
@@ -347,16 +353,16 @@
       </label>
       <select
         id="search-select-filter-combination"
+        [value]="selectedCombination"
         (change)="selectFilterCombinationChangeHandler($event)"
         class="selectFilter"
       >
-        <option
-          title=" A song needs to match at least one of the filters"
-          selected="selected"
-        >
+        <option value="Union (OR)" title="A song needs to match at least one of the filters">
           Union (OR)
         </option>
-        <option title="A song needs to match every filter">Intersection (AND)</option>
+        <option value="Intersection (AND)" title="A song needs to match every filter">
+          Intersection (AND)
+        </option>
       </select>
 
       <label class="check" for="search-adv-checkbox-ignore-duplicates"

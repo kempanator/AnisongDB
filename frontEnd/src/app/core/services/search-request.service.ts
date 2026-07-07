@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { BehaviorSubject, Observable, throwError, timer } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
+import { BehaviorSubject, EMPTY, Observable, Subject, throwError, timer } from 'rxjs';
+import { catchError, map, switchMap, tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 
 export interface RankedStatus {
@@ -14,6 +14,8 @@ export interface RankedStatus {
   providedIn: 'root',
 })
 export class SearchRequestService {
+  static readonly INITIAL_RANDOM_BODY = { type: 'initial_random_songs' } as const;
+
   constructor(private http: HttpClient) {
     this.rankedStatusSubject = new BehaviorSubject(this.getRankedStatus());
     this.rankedStatus$ = this.rankedStatusSubject.asObservable();
@@ -30,6 +32,55 @@ export class SearchRequestService {
 
   private readonly rankedStatusSubject: BehaviorSubject<RankedStatus>;
   readonly rankedStatus$: Observable<RankedStatus>;
+
+  private readonly searchDispatch$ = new Subject<Observable<any>>();
+  private songListModified = false;
+  private previousSearchBody: object | undefined;
+  private pendingSearchBody: object | undefined;
+
+  readonly songList$ = this.searchDispatch$.pipe(
+    switchMap((request$) =>
+      request$.pipe(
+        tap(() => {
+          if (this.pendingSearchBody !== undefined) {
+            this.previousSearchBody = this.pendingSearchBody;
+            this.pendingSearchBody = undefined;
+          }
+          this.songListModified = false;
+        }),
+        catchError(() => {
+          this.pendingSearchBody = undefined;
+          return EMPTY;
+        }),
+      ),
+    ),
+  );
+
+  dispatchSearch(request$: Observable<any>): void {
+    this.searchDispatch$.next(request$);
+  }
+
+  runSearch(body: object, request$: Observable<any>): boolean {
+    if (this.isSameSearchAsPrevious(body)) {
+      return false;
+    }
+
+    this.pendingSearchBody = body;
+    this.clearSearchError();
+    this.dispatchSearch(request$);
+    return true;
+  }
+
+  markSongListModified(): void {
+    this.songListModified = true;
+  }
+
+  isSameSearchAsPrevious(body: object): boolean {
+    return (
+      !this.songListModified &&
+      JSON.stringify(body) === JSON.stringify(this.previousSearchBody)
+    );
+  }
 
   clearSearchError(): void {
     this.searchErrorSubject.next(null);
@@ -104,8 +155,7 @@ export class SearchRequestService {
       region,
       localSeconds(date: Date) {
         const parts = fmt.formatToParts(date);
-        const get = (type: string) =>
-          Number(parts.find((p) => p.type === type)?.value || 0);
+        const get = (type: string) => Number(parts.find((p) => p.type === type)?.value || 0);
         return get('hour') * 3600 + get('minute') * 60 + get('second');
       },
     };
@@ -121,10 +171,7 @@ export class SearchRequestService {
 
   // Determine whether the AMQ ranked window is currently active for any supported time zone
   getRankedStatus(date: Date = new Date()): RankedStatus {
-    for (const {
-      region,
-      localSeconds,
-    } of SearchRequestService.RANKED_REGIONS) {
+    for (const { region, localSeconds } of SearchRequestService.RANKED_REGIONS) {
       const localSec = localSeconds(date);
 
       if (
@@ -200,7 +247,9 @@ export class SearchRequestService {
           return '';
         })
         .filter(Boolean);
-      return messages.length ? messages.join(' ') : null;
+      // Simple search can fire 4 identical error messages, dedupe them
+      const uniqueMessages = [...new Set(messages)];
+      return uniqueMessages.length ? uniqueMessages.join(' ') : null;
     }
 
     return null;
