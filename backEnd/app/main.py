@@ -13,9 +13,35 @@ import get_search_result
 import request_log
 import utils
 from catalog import Catalog, load_catalog
-from song_filters import SongFilters
+from song_filters import MediaLinksRequirements, SongFilters
 from schemas import *
 from db_types import *
+
+SONG_TYPE_IDS = {
+    "opening": 1,
+    "ending": 2,
+    "insert": 3,
+}
+BROADCAST_NAMES = {
+    "normal": "Normal",
+    "dub": "Dub",
+    "rebroadcast": "Rebroadcast",
+}
+CATEGORY_NAMES = {
+    "standard": "Standard",
+    "character": "Character",
+    "chanting": "Chanting",
+    "instrumental": "Instrumental",
+    "no_category": "No Category",
+}
+ANIME_TYPE_NAMES = {
+    "tv": "TV",
+    "movie": "Movie",
+    "ova": "OVA",
+    "ona": "ONA",
+    "special": "Special",
+    "doujin": "Doujin",
+}
 
 
 def _elapsed_ms(start: float) -> int:
@@ -104,94 +130,33 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     return await request_validation_exception_handler(request, exc)
 
 
-# Map request booleans to SongFilters; 400 + log if a filter group is empty.
-def resolve_song_filters(query, endpoint: str, request: Request | None = None) -> SongFilters:
-    song_types = []
-    if query.opening_filter:
-        song_types.append(1)
-    if query.ending_filter:
-        song_types.append(2)
-    if query.insert_filter:
-        song_types.append(3)
-
-    if not song_types:
-        request_log.record_request(
-            endpoint,
-            query,
-            request,
-            http_status=400,
-            reason="No song type filters",
-            detail="At least one song type filter (opening, ending, or insert) must be enabled.",
-        )
-
-    broadcasts = []
-    if query.normal_broadcast:
-        broadcasts.append("Normal")
-    if query.dub:
-        broadcasts.append("Dub")
-    if query.rebroadcast:
-        broadcasts.append("Rebroadcast")
-
-    if not broadcasts:
-        request_log.record_request(
-            endpoint,
-            query,
-            request,
-            http_status=400,
-            reason="No broadcast filters",
-            detail="At least one broadcast type filter (normal, dub, or rebroadcast) must be enabled.",
-        )
-
-    song_categories = []
-    if query.standard:
-        song_categories.append("Standard")
-        song_categories.append("No Category")
-    if query.instrumental:
-        song_categories.append("Instrumental")
-    if query.chanting:
-        song_categories.append("Chanting")
-    if query.character:
-        song_categories.append("Character")
-
-    if not song_categories:
-        request_log.record_request(
-            endpoint,
-            query,
-            request,
-            http_status=400,
-            reason="No song category filters",
-            detail="At least one song category filter (standard, instrumental, chanting, or character) must be enabled.",
-        )
-
-    anime_types = []
-    if query.tv_filter:
-        anime_types.append("TV")
-    if query.movie_filter:
-        anime_types.append("Movie")
-    if query.ova_filter:
-        anime_types.append("OVA")
-    if query.ona_filter:
-        anime_types.append("ONA")
-    if query.special_filter:
-        anime_types.append("Special")
-    if query.doujin_filter:
-        anime_types.append("Doujin")
-
-    if not anime_types:
-        request_log.record_request(
-            endpoint,
-            query,
-            request,
-            http_status=400,
-            reason="No anime type filters",
-            detail="At least one anime type filter (tv, movie, ova, ona, special, or doujin) must be enabled.",
-        )
+# Resolve validated API filter values to the database values used by SongFilters.
+def resolve_song_filters(query) -> SongFilters:
+    filters = query.filters
 
     return SongFilters(
-        song_types=song_types,
-        broadcasts=broadcasts,
-        song_categories=song_categories,
-        anime_types=anime_types,
+        song_types=frozenset(SONG_TYPE_IDS[value] for value in filters.song_types),
+        broadcasts=frozenset(BROADCAST_NAMES[value] for value in filters.broadcasts),
+        song_categories=frozenset(CATEGORY_NAMES[value] for value in filters.song_categories),
+        anime_types=frozenset(ANIME_TYPE_NAMES[value] for value in filters.anime_types),
+        season_start=filters.season.start if filters.season else None,
+        season_end=filters.season.end if filters.season else None,
+        difficulty_start=filters.difficulty.start if filters.difficulty else None,
+        difficulty_end=filters.difficulty.end if filters.difficulty else None,
+        include_no_difficulty=(
+            filters.difficulty.include_no_difficulty
+            if filters.difficulty is not None
+            else False
+        ),
+        media_links=(
+            MediaLinksRequirements(
+                require_any=frozenset(filters.media_links.require_any),
+                require_all=frozenset(filters.media_links.require_all),
+                exclude=frozenset(filters.media_links.exclude),
+            )
+            if filters.media_links is not None
+            else None
+        ),
     )
 
 
@@ -212,7 +177,7 @@ def get_n_random_songs(
 ):
     endpoint = "/api/get_n_random_songs"
 
-    filters = resolve_song_filters(query, endpoint, request)
+    filters = resolve_song_filters(query)
     start = time.perf_counter()
     songs = catalog.random_songs(query.n, filters)
     song_list = [utils.format_song(catalog.artists_by_id, song) for song in songs]
@@ -255,7 +220,7 @@ def search_request(
             detail="Song name/artist/composer text search is disabled during ranked time",
         )
 
-    filters = resolve_song_filters(query, endpoint, request)
+    filters = resolve_song_filters(query)
     start = time.perf_counter()
     song_list = get_search_result.get_search_results(
         catalog,
@@ -288,7 +253,7 @@ def artist_ids_request(
 ):
     endpoint = "/api/artist_ids_request"
 
-    filters = resolve_song_filters(query, endpoint, request)
+    filters = resolve_song_filters(query)
     start = time.perf_counter()
     song_list = get_search_result.get_artist_ids_song_list(
         catalog,
@@ -318,7 +283,7 @@ def composer_ids_request(
 ):
     endpoint = "/api/composer_ids_request"
 
-    filters = resolve_song_filters(query, endpoint, request)
+    filters = resolve_song_filters(query)
     start = time.perf_counter()
     song_list = get_search_result.get_composer_ids_song_list(
         catalog,
@@ -349,7 +314,7 @@ def annId_request(
 ):
     endpoint = "/api/annId_request"
 
-    filters = resolve_song_filters(query, endpoint, request)
+    filters = resolve_song_filters(query)
     start = time.perf_counter()
     song_list = get_search_result.get_ann_ids_song_list(
         catalog,
@@ -377,17 +342,7 @@ def ann_ids_request(
 ):
     endpoint = "/api/ann_ids_request"
 
-    if len(query.ann_ids) > 500:
-        request_log.record_request(
-            endpoint,
-            query,
-            request,
-            http_status=400,
-            reason="Too many IDs",
-            detail="Too many ANN IDs. Maximum allowed is 500.",
-        )
-
-    filters = resolve_song_filters(query, endpoint, request)
+    filters = resolve_song_filters(query)
     start = time.perf_counter()
     song_list = get_search_result.get_ann_ids_song_list(
         catalog,
@@ -415,18 +370,7 @@ def mal_ids_request(
 ):
     endpoint = "/api/mal_ids_request"
 
-    filters = resolve_song_filters(query, endpoint, request)
-
-    if len(query.mal_ids) > 500:
-        request_log.record_request(
-            endpoint,
-            query,
-            request,
-            http_status=400,
-            reason="Too many IDs",
-            detail="Too many MAL IDs. Maximum allowed is 500.",
-        )
-
+    filters = resolve_song_filters(query)
     start = time.perf_counter()
     song_list = get_search_result.get_mal_ids_song_list(
         catalog,
@@ -454,18 +398,7 @@ def ann_song_ids_request(
 ):
     endpoint = "/api/ann_song_ids_request"
 
-    filters = resolve_song_filters(query, endpoint, request)
-
-    if len(query.ann_song_ids) > 500:
-        request_log.record_request(
-            endpoint,
-            query,
-            request,
-            http_status=400,
-            reason="Too many IDs",
-            detail="Too many ANN Song IDs. Maximum allowed is 500.",
-        )
-
+    filters = resolve_song_filters(query)
     start = time.perf_counter()
     song_list = get_search_result.get_ann_song_ids_song_list(
         catalog,
@@ -493,18 +426,7 @@ def amq_song_ids_request(
 ):
     endpoint = "/api/amq_song_ids_request"
 
-    filters = resolve_song_filters(query, endpoint, request)
-
-    if len(query.amq_song_ids) > 500:
-        request_log.record_request(
-            endpoint,
-            query,
-            request,
-            http_status=400,
-            reason="Too many IDs",
-            detail="Too many AMQ Song IDs. Maximum allowed is 500.",
-        )
-
+    filters = resolve_song_filters(query)
     start = time.perf_counter()
     song_list = get_search_result.get_amq_song_ids_song_list(
         catalog,
@@ -559,7 +481,7 @@ def season_request(
             detail=error_detail,
         )
 
-    filters = resolve_song_filters(query, endpoint, request)
+    filters = resolve_song_filters(query)
     start = time.perf_counter()
     song_list = get_search_result.get_season_song_list(
         catalog,

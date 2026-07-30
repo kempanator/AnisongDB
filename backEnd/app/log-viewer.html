@@ -53,9 +53,6 @@
       --banner-border: #888;
       --banner-code-bg: #333;
       --banner-code-border: #7e7e7e;
-      --btn-clear-hover-bg: #3d2a2a;
-      --btn-clear-hover-border: var(--error-border);
-      --btn-clear-hover-fg: #e8a0a0;
     }
 
     html[data-theme="dark"] {
@@ -91,9 +88,6 @@
       --banner-border: #5c4e2a;
       --banner-code-bg: #242428;
       --banner-code-border: #5c4e2a;
-      --btn-clear-hover-bg: #3d2a2a;
-      --btn-clear-hover-border: var(--error-border);
-      --btn-clear-hover-fg: #e8a0a0;
     }
 
     html[data-theme="light"] {
@@ -129,14 +123,11 @@
       --banner-border: #e6d9a8;
       --banner-code-bg: #fff;
       --banner-code-border: #e0d5b0;
-      --btn-clear-hover-bg: var(--badge-red-bg);
-      --btn-clear-hover-border: var(--error-border);
-      --btn-clear-hover-fg: #9e4545;
     }
 
     body {
       margin: 0;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      font-family: "Segoe UI", sans-serif;
       background: var(--bg-page);
       color: var(--text);
       min-height: 100vh;
@@ -172,7 +163,7 @@
       font-weight: 600;
       letter-spacing: 0.02em;
       padding: 0.15rem 0.5rem;
-      border-radius: 4px;
+      border-radius: 2px;
       background: var(--badge-yellow-bg);
       color: var(--badge-yellow-fg);
       border: 1px solid var(--badge-yellow-border);
@@ -399,9 +390,8 @@
     }
 
     .filter-bar-btn.clear-logs:hover {
-      background: var(--btn-clear-hover-bg);
-      border-color: var(--btn-clear-hover-border);
-      color: var(--btn-clear-hover-fg);
+      border-color: var(--status-error);
+      color: var(--status-error);
     }
 
     main {
@@ -480,7 +470,7 @@
     .badge {
       display: inline-block;
       padding: 0.12rem 0.45rem;
-      border-radius: 4px;
+      border-radius: 2px;
       font-size: 0.72rem;
       font-weight: 600;
       text-transform: uppercase;
@@ -622,7 +612,7 @@
       background: var(--bg-inset, var(--bg-surface-muted));
       border: 1px solid var(--border);
       color: var(--text);
-      border-radius: 4px;
+      border-radius: 2px;
       overflow: auto;
       max-height: 8rem;
       font-size: 0.72rem;
@@ -661,7 +651,7 @@
       padding: 0.1rem 0.35rem;
       background: var(--banner-code-bg);
       border: 1px solid var(--banner-code-border);
-      border-radius: 3px;
+      border-radius: 2px;
       font-size: 0.85em;
     }
   </style>
@@ -806,41 +796,46 @@
       ["composer_search_filter", "Composer"],
     ];
 
-    const BOOLEAN_GROUPS = [
+    const FILTER_GROUPS = [
       {
-        label: "Types",
-        keys: [
-          ["opening_filter", "OP"],
-          ["ending_filter", "ED"],
-          ["insert_filter", "IN"],
+        label: "Song Types",
+        key: "song_types",
+        values: [
+          ["opening", "OP"],
+          ["ending", "ED"],
+          ["insert", "IN"],
         ],
       },
       {
         label: "Broadcast",
-        keys: [
-          ["normal_broadcast", "normal"],
+        key: "broadcasts",
+        values: [
+          ["normal", "normal"],
           ["dub", "dub"],
           ["rebroadcast", "rebroadcast"],
         ],
       },
       {
-        label: "Categories",
-        keys: [
+        label: "Performance",
+        key: "song_categories",
+        values: [
           ["standard", "Standard"],
-          ["instrumental", "Instrumental"],
-          ["chanting", "Chanting"],
           ["character", "Character"],
+          ["chanting", "Chanting"],
+          ["instrumental", "Instrumental"],
+          ["no_category", "No Category"],
         ],
       },
       {
-        label: "Media",
-        keys: [
-          ["tv_filter", "TV"],
-          ["movie_filter", "Movie"],
-          ["ova_filter", "OVA"],
-          ["ona_filter", "ONA"],
-          ["special_filter", "Special"],
-          ["doujin_filter", "Doujin"],
+        label: "Anime Types",
+        key: "anime_types",
+        values: [
+          ["tv", "TV"],
+          ["movie", "Movie"],
+          ["ova", "OVA"],
+          ["ona", "ONA"],
+          ["special", "Special"],
+          ["doujin", "Doujin"],
         ],
       },
     ];
@@ -1189,6 +1184,7 @@
       if (body && typeof body === "object") {
         if (body.season) parts.push(body.season);
         if (body.n != null) parts.push(String(body.n));
+        if (body.filters) parts.push(JSON.stringify(body.filters));
         for (const key of LOOKUP_ID_FIELD_KEYS) {
           if (Array.isArray(body[key])) parts.push(body[key].join(" "));
         }
@@ -1502,11 +1498,14 @@
       return badges;
     }
 
-    /** Summarize a boolean filter group (omit if all on; warn if all off). */
-    function formatBooleanGroup(body, group) {
-      const resolved = group.keys.map(([key, short]) => ({
+    /** Summarize a nested array filter group (omit if all on; warn if all off). */
+    function formatFilterGroup(body, group) {
+      const filters = body.filters;
+      if (!filters || !Array.isArray(filters[group.key])) return { omit: true };
+      const selected = new Set(filters[group.key].map((value) => String(value).toLowerCase()));
+      const resolved = group.values.map(([key, short]) => ({
         short,
-        on: body[key] !== false,
+        on: selected.has(key),
       }));
       const allOn = resolved.every((s) => s.on);
       const allOff = resolved.every((s) => !s.on);
@@ -1516,6 +1515,51 @@
       }
       const on = resolved.filter((s) => s.on).map((s) => s.short);
       return { text: `${group.label}: ${on.join(" ")}`, cls: "badge-gray badge-outline", omit: false };
+    }
+
+    function linkFilterBadges(body) {
+      const mediaLinks = body.filters?.media_links;
+      if (!mediaLinks || typeof mediaLinks !== "object") return [];
+
+      const labels = { audio: "audio", mq: "480p", hq: "720p" };
+      const badges = [];
+      for (const [key, label] of [
+        ["require_any", "any"],
+        ["require_all", "all"],
+        ["exclude", "without"],
+      ]) {
+        const values = Array.isArray(mediaLinks[key])
+          ? mediaLinks[key].map((value) => labels[String(value).toLowerCase()] || String(value))
+          : [];
+        if (values.length) {
+          badges.push({ text: `Links ${label}: ${values.join(" ")}`, cls: "badge-gray badge-outline" });
+        }
+      }
+      return badges;
+    }
+
+    function seasonFilterBadge(body) {
+      const season = body.filters?.season;
+      if (!season || typeof season !== "object" || (!season.start && !season.end)) return null;
+      const start = season.start || "—";
+      const end = season.end || "—";
+      return { text: `Season: ${start}–${end}`, cls: "badge-gray badge-outline" };
+    }
+
+    function difficultyFilterBadge(body) {
+      const difficulty = body.filters?.difficulty;
+      if (!difficulty || typeof difficulty !== "object") return null;
+
+      const hasRange = difficulty.start != null || difficulty.end != null;
+      const range = hasRange
+        ? `${difficulty.start ?? "—"}–${difficulty.end ?? "—"}%`
+        : null;
+      const parts = [];
+      if (range) parts.push(range);
+      if (difficulty.include_no_difficulty === true) parts.push("none");
+      if (!parts.length) return null;
+
+      return { text: `Difficulty: ${parts.join(" or ")}`, cls: "badge-gray badge-outline" };
     }
 
     /** AND/OR and ignore-duplicate badges for search requests. */
@@ -1604,7 +1648,7 @@
       return { html: `<div class="query-multi">${lines}</div>`, expand: null };
     }
 
-    /** HTML badge row for logic and boolean groups on a request body. */
+    /** HTML badge row for logic and nested filter groups on a request body. */
     function renderFilterBadges(endpoint, body) {
       const badges = [];
 
@@ -1616,12 +1660,20 @@
         badges.push('<span class="badge badge-gray badge-outline dim">no arrangement</span>');
       }
 
-      for (const group of BOOLEAN_GROUPS) {
-        const g = formatBooleanGroup(body, group);
+      for (const group of FILTER_GROUPS) {
+        const g = formatFilterGroup(body, group);
         if (!g.omit) {
           badges.push(`<span class="badge ${g.cls}">${escapeHtml(g.text)}</span>`);
         }
       }
+
+      for (const b of linkFilterBadges(body)) {
+        badges.push(`<span class="badge ${b.cls}">${escapeHtml(b.text)}</span>`);
+      }
+      const season = seasonFilterBadge(body);
+      if (season) badges.push(`<span class="badge ${season.cls}">${escapeHtml(season.text)}</span>`);
+      const difficulty = difficultyFilterBadge(body);
+      if (difficulty) badges.push(`<span class="badge ${difficulty.cls}">${escapeHtml(difficulty.text)}</span>`);
 
       return badges.join("");
     }

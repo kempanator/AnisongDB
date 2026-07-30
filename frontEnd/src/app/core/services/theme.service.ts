@@ -1,69 +1,75 @@
-import { DOCUMENT } from '@angular/common';
-import { Inject, Injectable } from '@angular/core';
-import { BehaviorSubject, Observable } from 'rxjs';
-import {
-  THEME_IDS,
-  THEME_TOKEN_KEYS,
-  THEMES,
-  ThemeId,
-  ThemeInfo,
-} from '../config/theme.config';
+import { DOCUMENT, effect, inject, Injectable, signal } from '@angular/core';
+import { UserPreferencesService } from './user-preferences.service';
+
+export type ThemeId = 'classic' | 'dark' | 'light';
+
+type ThemeMeta = {
+  id: ThemeId;
+  label: string;
+};
+
+const DEFAULT_THEME: ThemeId = 'classic';
+
+const THEMES: readonly ThemeMeta[] = [
+  {
+    id: 'classic',
+    label: 'Classic',
+  },
+  {
+    id: 'dark',
+    label: 'Dark',
+  },
+  {
+    id: 'light',
+    label: 'Light',
+  },
+];
+
+const THEME_ID_SET = new Set<string>(THEMES.map((theme) => theme.id));
+
+function isThemeId(value: unknown): value is ThemeId {
+  return typeof value === 'string' && THEME_ID_SET.has(value);
+}
+
+function resolveThemeId(value: unknown): ThemeId {
+  return isThemeId(value) ? value : DEFAULT_THEME;
+}
 
 @Injectable({
   providedIn: 'root',
 })
 export class ThemeService {
-  private readonly storageKey = 'appTheme';
-  private readonly defaultTheme: ThemeId = 'default';
+  private readonly preferences = inject(UserPreferencesService);
+  private readonly document = inject(DOCUMENT);
+  private readonly themeSignal = signal<ThemeId>(this.loadInitialTheme());
+  readonly theme = this.themeSignal.asReadonly();
+  readonly availableThemes = THEMES;
 
-  private readonly themeSubject: BehaviorSubject<ThemeId>;
-  readonly theme$: Observable<ThemeId>;
-
-  constructor(@Inject(DOCUMENT) private readonly document: Document) {
-    const saved = localStorage.getItem(this.storageKey);
-    const initial = this.isThemeId(saved) ? saved : this.defaultTheme;
-    this.themeSubject = new BehaviorSubject(initial);
-    this.theme$ = this.themeSubject.asObservable();
-    this.applyTheme(initial);
-  }
-
-  getTheme(): ThemeId {
-    return this.themeSubject.value;
+  constructor() {
+    effect(() => {
+      this.applyTheme(this.themeSignal());
+    });
   }
 
   setTheme(theme: ThemeId): void {
-    if (!this.isThemeId(theme)) {
+    if (!isThemeId(theme)) {
       return;
     }
 
-    localStorage.setItem(this.storageKey, theme);
-    this.applyTheme(theme);
-    this.themeSubject.next(theme);
+    this.preferences.updateStoredValues({ theme });
+    this.themeSignal.set(theme);
   }
 
-  getThemeInfo(theme: ThemeId = this.getTheme()): ThemeInfo {
-    return THEMES[theme];
+  resetTheme(): void {
+    this.preferences.removeStoredValues('theme');
+    this.themeSignal.set(DEFAULT_THEME);
   }
 
-  readonly availableThemes = THEME_IDS;
+  private loadInitialTheme(): ThemeId {
+    return resolveThemeId(this.preferences.getStoredValue('theme'));
+  }
 
   private applyTheme(theme: ThemeId): void {
-    const root = this.document.documentElement;
-    const tokens = THEMES[theme].tokens;
-
-    if (!tokens) {
-      for (const key of THEME_TOKEN_KEYS) {
-        root.style.removeProperty(`--${key}`);
-      }
-      return;
-    }
-
-    for (const key of THEME_TOKEN_KEYS) {
-      root.style.setProperty(`--${key}`, tokens[key]);
-    }
-  }
-
-  private isThemeId(value: string | null): value is ThemeId {
-    return value != null && value in THEMES;
+    this.document.documentElement.dataset['theme'] = theme;
   }
 }

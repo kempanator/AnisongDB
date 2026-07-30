@@ -1,312 +1,187 @@
-import { Component, OnInit, OnDestroy, Input } from '@angular/core';
-import { Observable, Subscription } from 'rxjs';
-import { RankedStatus, SearchRequestService } from '../core/services/search-request.service';
-import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  input,
+  OnInit,
+} from '@angular/core';
+import { RankedStatus, RankedStatusService } from '../core/services/ranked-status.service';
+import { NotificationService } from '../core/services/notification.service';
+import { SongSearchController } from '../core/services/song-search-controller.service';
+import { UserPreferencesService } from '../core/services/user-preferences.service';
+import { SongRow } from '../core/models/song';
+import { downloadJsonFile } from '../shared/download-json-file';
+import {
+  AdvancedLookupType,
+  AdvancedSearchFieldMode,
+  buildSearchCommand,
+  SearchCombination,
+  SearchFormState,
+  SearchMatchMode,
+  searchValidationError,
+} from './search-query';
 
 @Component({
   selector: 'app-search-bar',
   templateUrl: './search-bar.component.html',
   styleUrls: ['./search-bar.component.css'],
-  standalone: false,
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class SearchBarComponent implements OnInit, OnDestroy {
-  constructor(
-    private sanitizer: DomSanitizer,
-    readonly searchRequestService: SearchRequestService,
-  ) {}
+export class SearchBarComponent implements OnInit {
+  readonly songSearchController = inject(SongSearchController);
+  private readonly userPreferencesService = inject(UserPreferencesService);
+  private readonly rankedStatusService = inject(RankedStatusService);
+  private readonly notifications = inject(NotificationService);
 
-  @Input() currentSongList: any;
+  readonly currentSongList = input<SongRow[] | null>();
+  readonly showAdvancedFilters = computed(
+    () => this.userPreferencesService.preferences().searchMode === 'advanced',
+  );
 
-  mainFilter: string = '';
-  animeFilter: string = '';
-  songNameFilter: string = '';
-  artistFilter: string = '';
-  composerFilter: string = '';
-  maximumRandomsFilter: string = '99';
-  minimalMembersFilter: string = '0';
-  selectedCombination: string = 'Union (OR)';
-  mainFilterPartialMatch: boolean = true;
-  animeFilterPartialMatch: boolean = true;
-  songNameFilterPartialMatch: boolean = true;
-  artistFilterPartialMatch: boolean = true;
-  composerFilterPartialMatch: boolean = true;
-  composerFilterArrangement: boolean = true;
-  ignoreDuplicate: boolean = false;
-  showOpenings: boolean = true;
-  showEndings: boolean = true;
-  showInserts: boolean = true;
-  showNormalBroadcasts: boolean = true;
-  showDubs: boolean = true;
-  showRebroadcasts: boolean = true;
-  showStandards: boolean = true;
-  showInstrumentals: boolean = true;
-  showChantings: boolean = true;
-  showCharacters: boolean = true;
-  showTv: boolean = true;
-  showMovie: boolean = true;
-  showOva: boolean = true;
-  showOna: boolean = true;
-  showSpecial: boolean = true;
-  showDoujin: boolean = true;
-  showAdvancedFilters: boolean = false;
-
-  rankedStatus: RankedStatus = {
-    active: false,
-    region: null,
-    remainingSeconds: 0,
-  };
-  private rankedStatusSubscription: Subscription | null = null;
+  mainFilter = '';
+  animeFilter = '';
+  songNameFilter = '';
+  artistFilter = '';
+  composerFilter = '';
+  advancedSearchFieldMode: AdvancedSearchFieldMode = 'text';
+  advancedLookupType: AdvancedLookupType = 'season';
+  advancedLookupValue = '';
+  seasonRangeStart = '';
+  seasonRangeEnd = '';
+  maximumOtherPeople = '99';
+  minimumGroupMembers = '0';
+  searchCombination: SearchCombination = 'or';
+  mainFilterPartialMatch = true;
+  animeMatchMode: SearchMatchMode = 'partial';
+  songNameMatchMode: SearchMatchMode = 'partial';
+  artistMatchMode: SearchMatchMode = 'partial';
+  composerMatchMode: SearchMatchMode = 'partial';
+  composerFilterArrangement = true;
+  includeNoLinks = true;
+  ignoreDuplicate = false;
+  showOpenings = true;
+  showEndings = true;
+  showInserts = true;
+  showNormalBroadcasts = true;
+  showDubs = true;
+  showRebroadcasts = true;
+  showStandards = true;
+  showInstrumentals = true;
+  showChantings = true;
+  showCharacters = true;
+  showTv = true;
+  showMovie = true;
+  showOva = true;
+  showOna = true;
+  showSpecial = true;
+  showDoujin = true;
+  readonly rankedStatus = this.rankedStatusService.status;
 
   ngOnInit(): void {
-    this.rankedStatusSubscription = this.searchRequestService.rankedStatus$.subscribe(
-      (status) => {
-        this.rankedStatus = status;
-      },
-    );
-    this.searchRequestService.runSearch(
-      SearchRequestService.INITIAL_RANDOM_BODY,
-      this.searchRequestService.getFirstNRequest(),
-    );
+    this.songSearchController.startInitialSearch();
   }
 
-  ngOnDestroy(): void {
-    this.rankedStatusSubscription?.unsubscribe();
-    if (this.downloadObjectUrl) {
-      URL.revokeObjectURL(this.downloadObjectUrl);
-    }
+  toggleAdvancedFilters(): void {
+    const showAdvancedFilters = !this.showAdvancedFilters();
+    this.mainFilter = '';
+    this.userPreferencesService.updatePreferences({
+      searchMode: showAdvancedFilters ? 'advanced' : 'simple',
+    });
   }
 
   formatRankedRemaining(status: RankedStatus): string {
-    return this.searchRequestService.formatRankedRemaining(status);
+    return this.rankedStatusService.formatRemaining(status);
   }
 
-  private songFilterOptions() {
-    return {
-      opening_filter: this.showOpenings,
-      ending_filter: this.showEndings,
-      insert_filter: this.showInserts,
-      normal_broadcast: this.showNormalBroadcasts,
-      dub: this.showDubs,
-      rebroadcast: this.showRebroadcasts,
-      standard: this.showStandards,
-      instrumental: this.showInstrumentals,
-      chanting: this.showChantings,
-      character: this.showCharacters,
-      tv_filter: this.showTv,
-      movie_filter: this.showMovie,
-      ova_filter: this.showOva,
-      ona_filter: this.showOna,
-      special_filter: this.showSpecial,
-      doujin_filter: this.showDoujin,
-    };
+  submitSearch(): void {
+    const state = this.searchFormState();
+    const validationError = searchValidationError(state);
+    if (validationError) {
+      this.notifications.show(validationError);
+      return;
+    }
+
+    const command = buildSearchCommand(state, this.rankedStatus().active);
+    if (!command) {
+      this.notifications.show('Enter at least one search term.');
+      return;
+    }
+    this.songSearchController.runSearch(command);
   }
 
-  // Returns the season string if text matches formats like "Winter 2024" (case-insensitive), otherwise null
-  private parseSeasonQuery(text: string): string | null {
-    const match = text.trim().match(/^(winter|spring|summer|fall)\s*(\d{4})$/i);
-    if (!match) {
-      return null;
-    }
-    return `${match[1]} ${match[2]}`;
-  }
-
-  // Parses queries for ANN, MAL, ANN Song, or AMQ Song IDs with their respective keywords
-  private parseIdListQuery(
-    text: string,
-  ): { field: 'ann_ids' | 'mal_ids' | 'ann_song_ids' | 'amq_song_ids'; ids: number[] } | null {
-    const match = text.trim().match(/^(annid|malid|annsongid|amqsongid)\s+(.+)$/i);
-    if (!match) {
-      return null;
-    }
-
-    const ids = [...match[2].matchAll(/\d+/g)].map((part) => parseInt(part[0], 10));
-    if (!ids.length) {
-      return null;
-    }
-
-    const fieldByKeyword: Record<string, 'ann_ids' | 'mal_ids' | 'ann_song_ids' | 'amq_song_ids'> = {
-      annid: 'ann_ids',
-      malid: 'mal_ids',
-      annsongid: 'ann_song_ids',
-      amqsongid: 'amq_song_ids',
+  private searchFormState(): SearchFormState {
+    const songTypes = {
+      openings: this.showOpenings,
+      endings: this.showEndings,
+      inserts: this.showInserts,
     };
 
-    return { field: fieldByKeyword[match[1].toLowerCase()], ids };
-  }
-
-  private searchRequestForBody(body: any): Observable<any> {
-    if (body.season) {
-      return this.searchRequestService.seasonRequest(body);
-    }
-    if (body.ann_ids) {
-      return this.searchRequestService.annIdsSearchRequest(body);
-    }
-    if (body.mal_ids) {
-      return this.searchRequestService.malIdsSearchRequest(body);
-    }
-    if (body.ann_song_ids) {
-      return this.searchRequestService.annSongIdsSearchRequest(body);
-    }
-    if (body.amq_song_ids) {
-      return this.searchRequestService.amqSongIdsSearchRequest(body);
-    }
-    return this.searchRequestService.searchRequest(body);
-  }
-
-  onSearchCallKey(): void {
-    let body: any;
-    let tmp_anime_filter,
-      tmp_songname_filter,
-      tmp_artist_filter,
-      tmp_composer_filter;
-    let tmp_select = false;
-
-    if (this.selectedCombination == 'Intersection (AND)') {
-      tmp_select = true;
-    }
-
-    if (this.showAdvancedFilters) {
-      if (this.animeFilter.length > 0) {
-        tmp_anime_filter = {
-          search: this.animeFilter,
-          partial_match: this.animeFilterPartialMatch,
-        };
-      } else {
-        tmp_anime_filter = undefined;
-      }
-
-      if (this.songNameFilter.length > 0) {
-        tmp_songname_filter = {
-          search: this.songNameFilter,
-          partial_match: this.songNameFilterPartialMatch,
-        };
-      } else {
-        tmp_songname_filter = undefined;
-      }
-
-      if (this.artistFilter.length > 0) {
-        if (!this.minimalMembersFilter) {
-          this.minimalMembersFilter = '0';
-        }
-        if (!this.maximumRandomsFilter) {
-          this.maximumRandomsFilter = '99';
-        }
-        tmp_artist_filter = {
-          search: this.artistFilter,
-          partial_match: this.artistFilterPartialMatch,
-          group_granularity: parseInt(this.minimalMembersFilter),
-          max_other_artist: parseInt(this.maximumRandomsFilter),
-        };
-      } else {
-        tmp_artist_filter = undefined;
-      }
-
-      if (this.composerFilter.length > 0) {
-        if (!this.minimalMembersFilter) {
-          this.minimalMembersFilter = '0';
-        }
-        if (!this.maximumRandomsFilter) {
-          this.maximumRandomsFilter = '99';
-        }
-        tmp_composer_filter = {
-          search: this.composerFilter,
-          partial_match: this.composerFilterPartialMatch,
-          arrangement: this.composerFilterArrangement,
-          group_granularity: parseInt(this.minimalMembersFilter),
-          max_other_artist: parseInt(this.maximumRandomsFilter),
-        };
-      } else {
-        tmp_composer_filter = undefined;
-      }
-
-      body = {
-        anime_search_filter: tmp_anime_filter,
-        song_name_search_filter: tmp_songname_filter,
-        artist_search_filter: tmp_artist_filter,
-        composer_search_filter: tmp_composer_filter,
-        and_logic: tmp_select,
-        ignore_duplicate: this.ignoreDuplicate,
-        ...this.songFilterOptions(),
+    if (!this.showAdvancedFilters()) {
+      return {
+        advanced: false,
+        main: this.mainFilter,
+        mainPartialMatch: this.mainFilterPartialMatch,
+        ignoreDuplicate: this.ignoreDuplicate,
+        filters: songTypes,
       };
-    } else {
-      const season = this.parseSeasonQuery(this.mainFilter);
-      const idList = this.parseIdListQuery(this.mainFilter);
-      if (season) {
-        body = {
-          season,
-          ignore_duplicate: this.ignoreDuplicate,
-          ...this.songFilterOptions(),
-        };
-      } else if (idList) {
-        body = {
-          [idList.field]: idList.ids,
-          ignore_duplicate: this.ignoreDuplicate,
-          ...this.songFilterOptions(),
-        };
-      } else if (this.mainFilter.length == 0) {
-        body = {
-          anime_search_filter: undefined,
-          song_name_search_filter: undefined,
-          artist_search_filter: undefined,
-          composer_search_filter: undefined,
-          and_logic: tmp_select,
-          ignore_duplicate: this.ignoreDuplicate,
-          ...this.songFilterOptions(),
-        };
-      } else if (this.rankedStatus.active) {
-        body = {
-          anime_search_filter: {
-            search: this.mainFilter,
-            partial_match: this.mainFilterPartialMatch,
-          },
-          song_name_search_filter: undefined,
-          artist_search_filter: undefined,
-          composer_search_filter: undefined,
-          and_logic: tmp_select,
-          ignore_duplicate: this.ignoreDuplicate,
-          ...this.songFilterOptions(),
-        };
-      } else {
-        body = {
-          anime_search_filter: {
-            search: this.mainFilter,
-            partial_match: this.mainFilterPartialMatch,
-          },
-          song_name_search_filter: {
-            search: this.mainFilter,
-            partial_match: this.mainFilterPartialMatch,
-          },
-          artist_search_filter: {
-            search: this.mainFilter,
-            partial_match: this.mainFilterPartialMatch,
-            group_granularity: parseInt(this.minimalMembersFilter),
-            max_other_artist: parseInt(this.maximumRandomsFilter),
-          },
-          composer_search_filter: {
-            search: this.mainFilter,
-            partial_match: this.mainFilterPartialMatch,
-            arrangement: this.composerFilterArrangement,
-          },
-          and_logic: tmp_select,
-          ignore_duplicate: this.ignoreDuplicate,
-          ...this.songFilterOptions(),
-        };
-      }
     }
 
-    this.searchRequestService.runSearch(
-      body,
-      this.searchRequestForBody(body),
-    );
+    return {
+      advanced: true,
+      anime: this.animeFilter,
+      songName: this.songNameFilter,
+      artist: this.artistFilter,
+      composer: this.composerFilter,
+      advancedSearchFieldMode: this.advancedSearchFieldMode,
+      advancedLookupType: this.advancedLookupType,
+      advancedLookupValue: this.advancedLookupValue,
+      seasonRangeStart: this.seasonRangeStart,
+      seasonRangeEnd: this.seasonRangeEnd,
+      maximumOtherPeople: this.maximumOtherPeople,
+      minimumGroupMembers: this.minimumGroupMembers,
+      combination: this.searchCombination,
+      animeMatchMode: this.animeMatchMode,
+      songNameMatchMode: this.songNameMatchMode,
+      artistMatchMode: this.artistMatchMode,
+      composerMatchMode: this.composerMatchMode,
+      composerArrangement: this.composerFilterArrangement,
+      ignoreDuplicate: this.ignoreDuplicate,
+      filters: {
+        ...songTypes,
+        normalBroadcasts: this.showNormalBroadcasts,
+        dubs: this.showDubs,
+        rebroadcasts: this.showRebroadcasts,
+        standards: this.showStandards,
+        instrumentals: this.showInstrumentals,
+        chantings: this.showChantings,
+        characters: this.showCharacters,
+        tv: this.showTv,
+        movie: this.showMovie,
+        ova: this.showOva,
+        ona: this.showOna,
+        special: this.showSpecial,
+        doujin: this.showDoujin,
+        includeNoLinks: this.includeNoLinks,
+      },
+    };
   }
 
-  selectFilterCombinationChangeHandler(event: any) {
-    this.selectedCombination = event.target.value;
+  toggleAdvancedSearchFieldMode(): void {
+    this.advancedSearchFieldMode =
+      this.advancedSearchFieldMode === 'text' ? 'lookup' : 'text';
   }
 
-  downloadJsonHref: SafeUrl = '';
-  downloadFileName: string = 'Init_SongList.json';
-  private downloadObjectUrl: string | null = null;
+  advancedLookupPlaceholder(): string {
+    switch (this.advancedLookupType) {
+      case 'season':
+        return 'Winter 2020';
+      case 'random':
+        return '#';
+      default:
+        return '1, 2, 3';
+    }
+  }
 
   openJsonHelp() {
     window.open(
@@ -324,34 +199,33 @@ export class SearchBarComponent implements OnInit, OnDestroy {
     );
   }
 
-  generateDownloadJsonUri() {
-    // Use template literals and the `join` method to generate the file name
-    this.downloadFileName = [
-      this.showAdvancedFilters
-        ? [
-            this.animeFilter,
-            this.songNameFilter,
-            this.artistFilter,
-            this.composerFilter,
-          ]
-        : this.mainFilter,
-      'SongList.json',
-    ]
-      .join('_')
-      .replace(/ /g, '')
-      .replace(/,/g, '_')
-      .replace(/__/g, '');
-
-    // Stringify the JSON data and create a blob
-    let theJSON = JSON.stringify(this.currentSongList);
-    let blob = new Blob([theJSON], { type: 'text/json' });
-
-    if (this.downloadObjectUrl) {
-      URL.revokeObjectURL(this.downloadObjectUrl);
+  private currentSearchTerms(): string[] {
+    if (!this.showAdvancedFilters()) {
+      return [this.mainFilter];
     }
-    this.downloadObjectUrl = URL.createObjectURL(blob);
-    this.downloadJsonHref = this.sanitizer.bypassSecurityTrustUrl(
-      this.downloadObjectUrl,
+    if (this.advancedSearchFieldMode === 'lookup') {
+      return [this.advancedLookupType, this.advancedLookupValue];
+    }
+    return [this.animeFilter, this.songNameFilter, this.artistFilter, this.composerFilter];
+  }
+
+  private buildDownloadFileName(): string {
+    const segments = this.currentSearchTerms()
+      .map((filter) => filter
+        .trim()
+        .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '-')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^[.-]+|[.-]+$/g, ''))
+      .filter(Boolean);
+
+    return [...segments, 'SongList'].join('_') + '.json';
+  }
+
+  downloadJson(): void {
+    downloadJsonFile(
+      this.buildDownloadFileName(),
+      this.currentSongList() ?? [],
     );
   }
 }

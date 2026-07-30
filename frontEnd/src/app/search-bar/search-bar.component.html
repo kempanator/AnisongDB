@@ -1,145 +1,149 @@
-<div *ngIf="rankedStatus.active" class="ranked-banner" role="status" aria-live="polite">
-  <span class="ranked-banner-icon" aria-hidden="true"><i class="fa fa-shield"></i></span>
-  <span class="ranked-banner-text">
-    <span class="ranked-banner-title">AMQ Ranked</span>
-    <span class="ranked-banner-region">{{ rankedStatus.region }}</span>
-    Some functionality disabled – <strong>{{ formatRankedRemaining(rankedStatus) }}</strong> remaining
-  </span>
-  <button
-    type="button"
-    class="ranked-banner-info tooltip"
-    aria-label="About AMQ Ranked restrictions"
-  >
-    <i class="fa fa-info-circle" aria-hidden="true"></i>
-    <span class="tooltiptext ranked-banner-info-tooltip">
-      <strong>What is Ranked?</strong>
-      <p>
-        Ranked is a daily scheduled multiplayer mode in Anime Music Quiz. During this time, AnisongDB limits
-        features that could expose song audio and song/artist/composer scouting to prevent cheating.
-      </p>
-
-      <strong>Schedule</strong>
-      <p>
-        Each window runs 8:30 PM–9:23 PM (53 minutes) during that region's local time.
-      </p>
-      <ul>
-        <li><strong>Central</strong> Europe/Copenhagen (CET/CEST)</li>
-        <li><strong>Western</strong> America/Chicago (CDT/CST)</li>
-        <li><strong>Eastern</strong> Asia/Tokyo (JST)</li>
-      </ul>
-
-      <strong>API Endpoints Disabled</strong>
-      <ul>
-        <li>Song name search</li>
-        <li>Artist search</li>
-        <li>Composer search</li>
-      </ul>
-
-      <strong>Table &amp; UI disabled</strong>
-      <ul>
-        <li>Song Links column</li>
-        <li>Play Audio column</li>
-        <li>Artist, composer, and arranger quick-search icons</li>
-      </ul>
+@if (rankedStatus().active) {
+  <div class="ranked-banner" role="status" aria-live="polite">
+    <span class="ranked-banner-icon" aria-hidden="true"><i class="fa fa-shield"></i></span>
+    <span class="ranked-banner-text">
+      <span class="ranked-banner-title">AMQ Ranked</span>
+      <span class="ranked-banner-region">{{ rankedStatus().region }}</span>
+      Some functionality disabled – <strong>{{ formatRankedRemaining(rankedStatus()) }}</strong> remaining
     </span>
-  </button>
-</div>
+    <button
+      id="search-ranked-info"
+      type="button"
+      class="ranked-banner-info tooltip"
+      aria-label="About AMQ Ranked restrictions"
+    >
+      <i class="fa fa-info-circle" aria-hidden="true"></i>
+      <span class="tooltiptext ranked-banner-info-tooltip">
+        <strong>What is Ranked?</strong>
+        <p>
+          Ranked is a daily scheduled multiplayer mode in Anime Music Quiz. During this time, AnisongDB limits
+          search and scouting features to help prevent cheating. Audio playback and song links remain available.
+        </p>
+
+        <strong>Schedule</strong>
+        <p>
+          Each window runs 8:30 PM–9:23 PM (53 minutes) during that region's local time.
+        </p>
+        <ul>
+          <li><strong>Central</strong> Europe/Copenhagen (CET/CEST)</li>
+          <li><strong>Western</strong> America/Chicago (CDT/CST)</li>
+          <li><strong>Eastern</strong> Asia/Tokyo (JST)</li>
+        </ul>
+
+        <strong>API Endpoints Disabled</strong>
+        <ul>
+          <li>Song name search</li>
+          <li>Artist search</li>
+          <li>Composer search</li>
+        </ul>
+
+        <strong>Table &amp; UI disabled</strong>
+        <ul>
+          <li>Artist, composer, and arranger quick-search icons</li>
+        </ul>
+      </span>
+    </button>
+  </div>
+}
 
 <div class="search-bar-header">
-  <div *ngIf="!showAdvancedFilters" class="mainFilter">
-    <button id="search-btn-main" type="button" class="search-btn" (click)="onSearchCallKey()">Search</button>
+@if (!showAdvancedFilters()) {
+    <div class="search-simple-form">
+      <button id="search-btn-main" type="button" class="app-button app-button--primary" (click)="submitSearch()">
+        <i class="fa fa-search" aria-hidden="true"></i> Search
+      </button>
 
-    <input
-      id="search-input-main"
-      #mainFilterInput
-      [placeholder]="rankedStatus.active ? 'Search by anime' : 'Search by anime, song name or artist'"
-      [title]="rankedStatus.active ? 'Search by anime' : 'Search by anime, song name or artist'"
-      class="textInputFilter main-search-input"
-      type="search"
-      maxlength="500"
-      [value]="mainFilter"
-      (keyup.enter)="onSearchCallKey()"
-      (input)="mainFilter = mainFilterInput.value"
-    />
+      <input
+        id="search-input-main"
+        #mainFilterInput
+        [placeholder]="rankedStatus().active ? 'Search by anime' : 'Search by anime, song name or artist'"
+        [title]="rankedStatus().active ? 'Search by anime' : 'Search by anime, song name or artist'"
+        class="app-input main-search-input"
+        type="search"
+        maxlength="500"
+        [value]="mainFilter"
+        (keyup.enter)="submitSearch()"
+        (input)="mainFilter = mainFilterInput.value"
+      />
 
-    <label class="check" for="search-main-checkbox-op"
-      ><input
-        id="search-main-checkbox-op"
-        type="checkbox"
-        (change)="showOpenings = !showOpenings"
-        [checked]="showOpenings"
-      />
-      OP
-    </label>
-    <label class="check" for="search-main-checkbox-ed"
-      ><input
-        id="search-main-checkbox-ed"
-        type="checkbox"
-        (change)="showEndings = !showEndings"
-        [checked]="showEndings"
-      />
-      ED
-    </label>
-    <label class="check" for="search-main-checkbox-ins"
-      ><input
-        id="search-main-checkbox-ins"
-        type="checkbox"
-        (change)="showInserts = !showInserts"
-        [checked]="showInserts"
-      />
-      INS
-    </label>
+      <label class="app-checkbox" for="search-main-checkbox-op"
+        ><input
+          id="search-main-checkbox-op"
+          type="checkbox"
+          (change)="showOpenings = !showOpenings"
+          [checked]="showOpenings"
+        />
+        OP
+      </label>
+      <label class="app-checkbox" for="search-main-checkbox-ed"
+        ><input
+          id="search-main-checkbox-ed"
+          type="checkbox"
+          (change)="showEndings = !showEndings"
+          [checked]="showEndings"
+        />
+        ED
+      </label>
+      <label class="app-checkbox" for="search-main-checkbox-ins"
+        ><input
+          id="search-main-checkbox-ins"
+          type="checkbox"
+          (change)="showInserts = !showInserts"
+          [checked]="showInserts"
+        />
+        INS
+      </label>
 
-    <label class="check" for="search-main-checkbox-ignore-duplicates"
-      ><input
-        id="search-main-checkbox-ignore-duplicates"
-        type="checkbox"
-        (change)="ignoreDuplicate = !ignoreDuplicate"
-        [checked]="ignoreDuplicate"
-      />
-      Ignore Duplicates
-    </label>
+      <label class="app-checkbox" for="search-main-checkbox-ignore-duplicates"
+        ><input
+          id="search-main-checkbox-ignore-duplicates"
+          type="checkbox"
+          (change)="ignoreDuplicate = !ignoreDuplicate"
+          [checked]="ignoreDuplicate"
+        />
+        Ignore Duplicates
+      </label>
 
-    <label
-      class="check"
-      for="search-main-checkbox-partial-match"
-      title="If activated, results only have to contain the filter and not match it exactly"
-      ><input
-        id="search-main-checkbox-partial-match"
-        type="checkbox"
-        (change)="mainFilterPartialMatch = !mainFilterPartialMatch"
-        [checked]="mainFilterPartialMatch"
-      />
-      Partial Match
-    </label>
-  </div>
+      <label
+        class="app-checkbox"
+        for="search-main-checkbox-partial-match"
+        title="If activated, results only have to contain the filter and not match it exactly"
+        ><input
+          id="search-main-checkbox-partial-match"
+          type="checkbox"
+          (change)="mainFilterPartialMatch = !mainFilterPartialMatch"
+          [checked]="mainFilterPartialMatch"
+        />
+        Partial Match
+      </label>
+    </div>
+  }
 
   <div class="search-bar-actions">
     <button
       id="search-toggle-advanced"
       type="button"
-      class="showFilter"
-      [title]="showAdvancedFilters ? 'Switch to simple search' : 'Toggle advanced filters'"
-      (click)="showAdvancedFilters = !showAdvancedFilters; mainFilter = ''"
+      class="search-toolbar-action"
+      [title]="showAdvancedFilters() ? 'Switch to simple search' : 'Switch to advanced search'"
+      (click)="toggleAdvancedFilters()"
     >
-      <i class="fa fa-cog"></i> {{ showAdvancedFilters ? 'Simple' : 'Advanced' }}
+      <i class="fa fa-cog"></i> {{ showAdvancedFilters() ? 'Simple' : 'Advanced' }}
     </button>
 
-    <a
+    <button
       id="search-download-json"
-      class="showFilter"
+      type="button"
+      class="search-toolbar-action"
       title="Download Song List as JSON"
-      (click)="generateDownloadJsonUri()"
-      [href]="downloadJsonHref"
-      download="{{ downloadFileName }}"
+      (click)="downloadJson()"
     >
       <i class="fa fa-download"></i> JSON
-    </a>
+    </button>
 
     <button
       id="search-help-json"
       type="button"
-      class="helpButton"
+      class="app-icon-button app-icon-button--inline search-help-button"
       title="What can I do with that JSON?"
       (click)="openJsonHelp()"
     >
@@ -148,362 +152,496 @@
   </div>
 </div>
 
-<div *ngIf="showAdvancedFilters" class="filters">
-    <div class="filter-field-row">
-      <label class="check" for="search-adv-checkbox-op"
-        ><input
-          id="search-adv-checkbox-op"
-          type="checkbox"
-          (change)="showOpenings = !showOpenings"
-          [checked]="showOpenings"
-        />
-        OP
-      </label>
-      <label class="check" for="search-adv-checkbox-ed"
-        ><input
-          id="search-adv-checkbox-ed"
-          type="checkbox"
-          (change)="showEndings = !showEndings"
-          [checked]="showEndings"
-        />
-        ED
-      </label>
-      <label class="check" for="search-adv-checkbox-ins"
-        ><input
-          id="search-adv-checkbox-ins"
-          type="checkbox"
-          (change)="showInserts = !showInserts"
-          [checked]="showInserts"
-        />
-        INS
-      </label>
-      <span
-        id="search-adv-help-filters"
-        class="helpButton"
-        title="Help understanding settings"
-        (click)="openFiltersHelp()"
-      >
-        <i class="fa fa-question-circle"></i>
-      </span>
-    </div>
-
-    <div class="filter-field-row">
-      <input
-        id="search-input-anime"
-        #animeFilterInput
-        class="textInputFilter filter-input"
-        type="search"
-        maxlength="500"
-        placeholder="Search by anime..."
-        title="Search by anime name"
-        (keyup.enter)="onSearchCallKey()"
-        (input)="animeFilter = animeFilterInput.value"
-      />
-
-      <label
-        class="check"
-        for="search-adv-checkbox-anime-partial-match"
-        title="If activated, results only have to contain the filter and not match it exactly"
-        ><input
-          id="search-adv-checkbox-anime-partial-match"
-          type="checkbox"
-          (change)="animeFilterPartialMatch = !animeFilterPartialMatch"
-          [checked]="animeFilterPartialMatch"
-        />
-        Partial Match
-      </label>
-    </div>
-
-    <div class="filter-field-row">
-      <input
-        id="search-input-song-name"
-        #songNameFilterInput
-        class="textInputFilter filter-input"
-        placeholder="Search by song name..."
-        title="Search by song name"
-        type="search"
-        maxlength="500"
-        (keyup.enter)="onSearchCallKey()"
-        (input)="songNameFilter = songNameFilterInput.value"
-      />
-
-      <label
-        class="check"
-        for="search-adv-checkbox-song-name-partial-match"
-        title="If activated, results only have to contain the filter and not match it exactly"
-        ><input
-          id="search-adv-checkbox-song-name-partial-match"
-          type="checkbox"
-          (change)="songNameFilterPartialMatch = !songNameFilterPartialMatch"
-          [checked]="songNameFilterPartialMatch"
-        />
-        Partial Match
-      </label>
-    </div>
-
-    <div class="filter-field-row loose">
-      <input
-        id="search-input-artist"
-        #artistFilterInput
-        class="textInputFilter filter-input"
-        placeholder="Search by artist..."
-        type="search"
-        maxlength="500"
-        title="Search by artist"
-        (keyup.enter)="onSearchCallKey()"
-        (input)="artistFilter = artistFilterInput.value"
-      />
-
-      <label
-        class="check"
-        for="search-adv-checkbox-artist-partial-match"
-        title="If activated, results only have to contain the filter and not match it exactly"
-        ><input
-          id="search-adv-checkbox-artist-partial-match"
-          type="checkbox"
-          (change)="artistFilterPartialMatch = !artistFilterPartialMatch"
-          [checked]="artistFilterPartialMatch"
-        />
-        Partial Match
-      </label>
-    </div>
-
-    <div class="filter-field-row loose">
-      <input
-        id="search-input-composer"
-        #composerFilterInput
-        class="textInputFilter filter-input"
-        placeholder="Search by composer..."
-        type="search"
-        maxlength="500"
-        title="Search by composer"
-        (keyup.enter)="onSearchCallKey()"
-        (input)="composerFilter = composerFilterInput.value"
-      />
-
-      <label
-        class="check"
-        for="search-adv-checkbox-composer-partial-match"
-        title="If activated, results only have to contain the filter and not match it exactly"
-        ><input
-          id="search-adv-checkbox-composer-partial-match"
-          type="checkbox"
-          (change)="composerFilterPartialMatch = !composerFilterPartialMatch"
-          [checked]="composerFilterPartialMatch"
-        />
-        Partial Match
-      </label>
-      <label
-        class="check"
-        for="search-adv-checkbox-composer-arrangement"
-        title="If activated, it will also add songs where they only participated in the arrangement"
-      >
-        <input
-          id="search-adv-checkbox-composer-arrangement"
-          type="checkbox"
-          (change)="composerFilterArrangement = !composerFilterArrangement"
-          [checked]="composerFilterArrangement"
-        />
-        Arrangement
-      </label>
-    </div>
-
-    <div class="filter-field-row loose">
-      <label class="numeric-filter" for="search-input-max-other-people">
-        <div class="tooltip">
-          Max Other People
-          <span class="tooltiptext">This is the maximum amount of people that are not in your Artist or Composer Filter field who are allowed</span>
+@if (showAdvancedFilters()) {
+  <div class="advanced-search">
+    <div class="advanced-search-grid">
+      <section class="advanced-search-section" aria-labelledby="advanced-search-fields-heading">
+        <div class="advanced-search-heading-row">
+          <h2 id="advanced-search-fields-heading" class="advanced-search-heading">Search Fields</h2>
+          <button
+            id="search-adv-toggle-fields-mode"
+            type="button"
+            class="app-icon-button advanced-search-mode-toggle"
+            [title]="advancedSearchFieldMode === 'text' ? 'Switch to lookup fields' : 'Switch to text fields'"
+            [attr.aria-label]="advancedSearchFieldMode === 'text' ? 'Switch to lookup fields' : 'Switch to text fields'"
+            [attr.aria-pressed]="advancedSearchFieldMode === 'lookup'"
+            (click)="toggleAdvancedSearchFieldMode()"
+          >
+            <i class="fa fa-exchange" aria-hidden="true"></i>
+          </button>
         </div>
-        <input
-          id="search-input-max-other-people"
-          #maximumRandomsFilterInput
-          class="textInputFilter filter-input-narrow"
-          type="number"
-          min="0"
-          step="1"
-          (keyup.enter)="onSearchCallKey()"
-          (input)="maximumRandomsFilter = maximumRandomsFilterInput.value"
-          [value]="maximumRandomsFilter"
-        />
-      </label>
-      <label class="numeric-filter" for="search-input-min-group-members">
-        <div class="tooltip">
-          Min Group Members
-          <span class="tooltiptext">This is the minimum amount of people from the group in Artist or Composer filter that needs to be present (only useful for groups)</span>
+
+        @if (advancedSearchFieldMode === 'text') {
+        <div class="advanced-search-query">
+          <span class="advanced-search-control">
+            <input
+              id="search-input-anime"
+              #animeFilterInput
+              class="app-input advanced-search-input"
+              type="search"
+              maxlength="500"
+              placeholder="Search by anime..."
+              [value]="animeFilter"
+              (keyup.enter)="submitSearch()"
+              (input)="animeFilter = animeFilterInput.value"
+            />
+            <select
+              id="search-adv-select-anime-match"
+              class="app-select advanced-search-match-select"
+              title="Choose how the anime search should match"
+              [value]="animeMatchMode"
+              (change)="animeMatchMode = $any($event.target).value"
+            >
+              <option value="partial">Partial Match</option>
+              <option value="exact">Exact Match</option>
+              <option value="partial-case">Partial + Case</option>
+              <option value="exact-case">Exact + Case</option>
+            </select>
+          </span>
         </div>
-        <input
-          id="search-input-min-group-members"
-          #minimalMembersFilterInput
-          class="textInputFilter filter-input-narrow"
-          type="number"
-          min="0"
-          step="1"
-          (keyup.enter)="onSearchCallKey()"
-          (input)="minimalMembersFilter = minimalMembersFilterInput.value"
-          [value]="minimalMembersFilter"
-        />
-      </label>
+
+        <div class="advanced-search-query">
+          <span class="advanced-search-control">
+            <input
+              id="search-input-song-name"
+              #songNameFilterInput
+              class="app-input advanced-search-input"
+              type="search"
+              maxlength="500"
+              placeholder="Search by song name..."
+              [value]="songNameFilter"
+              (keyup.enter)="submitSearch()"
+              (input)="songNameFilter = songNameFilterInput.value"
+            />
+            <select
+              id="search-adv-select-song-name-match"
+              class="app-select advanced-search-match-select"
+              title="Choose how the song name search should match"
+              [value]="songNameMatchMode"
+              (change)="songNameMatchMode = $any($event.target).value"
+            >
+              <option value="partial">Partial Match</option>
+              <option value="exact">Exact Match</option>
+              <option value="partial-case">Partial + Case</option>
+              <option value="exact-case">Exact + Case</option>
+            </select>
+          </span>
+        </div>
+
+        <div class="advanced-search-query">
+          <span class="advanced-search-control">
+            <input
+              id="search-input-artist"
+              #artistFilterInput
+              class="app-input advanced-search-input"
+              type="search"
+              maxlength="500"
+              placeholder="Search by artist..."
+              [value]="artistFilter"
+              (keyup.enter)="submitSearch()"
+              (input)="artistFilter = artistFilterInput.value"
+            />
+            <select
+              id="search-adv-select-artist-match"
+              class="app-select advanced-search-match-select"
+              title="Choose how the artist search should match"
+              [value]="artistMatchMode"
+              (change)="artistMatchMode = $any($event.target).value"
+            >
+              <option value="partial">Partial Match</option>
+              <option value="exact">Exact Match</option>
+              <option value="partial-case">Partial + Case</option>
+              <option value="exact-case">Exact + Case</option>
+            </select>
+          </span>
+        </div>
+
+        <div class="advanced-search-query">
+          <span class="advanced-search-control">
+            <input
+              id="search-input-composer"
+              #composerFilterInput
+              class="app-input advanced-search-input"
+              type="search"
+              maxlength="500"
+              placeholder="Search by composer..."
+              [value]="composerFilter"
+              (keyup.enter)="submitSearch()"
+              (input)="composerFilter = composerFilterInput.value"
+            />
+            <select
+              id="search-adv-select-composer-match"
+              class="app-select advanced-search-match-select"
+              title="Choose how the composer search should match"
+              [value]="composerMatchMode"
+              (change)="composerMatchMode = $any($event.target).value"
+            >
+              <option value="partial">Partial Match</option>
+              <option value="exact">Exact Match</option>
+              <option value="partial-case">Partial + Case</option>
+              <option value="exact-case">Exact + Case</option>
+            </select>
+          </span>
+        </div>
+        } @else {
+          <div class="advanced-search-query">
+            <span class="advanced-search-control">
+              <input
+                id="search-adv-input-lookup"
+                #advancedLookupInput
+                class="app-input advanced-search-input"
+                type="text"
+                maxlength="500"
+                [attr.inputmode]="advancedLookupType === 'random' ? 'numeric' : null"
+                [placeholder]="advancedLookupPlaceholder()"
+                [value]="advancedLookupValue"
+                (keyup.enter)="submitSearch()"
+                (input)="advancedLookupValue = advancedLookupInput.value"
+              />
+              <select
+                id="search-adv-select-lookup-type"
+                class="app-select advanced-search-lookup-select"
+                title="Choose a lookup field"
+                aria-label="Choose a lookup field"
+                [value]="advancedLookupType"
+                (change)="advancedLookupType = $any($event.target).value"
+              >
+                <option value="season">Season</option>
+                <option value="ann-ids">ANN ID</option>
+                <option value="mal-ids">MAL ID</option>
+                <option value="ann-song-ids">ANN Song ID</option>
+                <option value="amq-song-ids">AMQ Song ID</option>
+                <option value="random">Random # Songs</option>
+              </select>
+            </span>
+          </div>
+        }
+      </section>
+
+      <section class="advanced-search-section" aria-labelledby="advanced-search-options-heading">
+        <h2 id="advanced-search-options-heading" class="advanced-search-heading">Match Options</h2>
+
+        <div class="advanced-search-option-checks">
+          <label
+            class="app-checkbox"
+            for="search-adv-checkbox-composer-arrangement"
+            title="For composer search, include songs where they only participated in the arrangement"
+          >
+            <input
+              id="search-adv-checkbox-composer-arrangement"
+              type="checkbox"
+              (change)="composerFilterArrangement = !composerFilterArrangement"
+              [checked]="composerFilterArrangement"
+            />
+            Include arrangement credits
+          </label>
+
+          <label
+            class="app-checkbox"
+            for="search-adv-checkbox-include-no-links"
+            title="Include songs with no media links (720, 480, MP3)"
+          >
+            <input
+              id="search-adv-checkbox-include-no-links"
+              type="checkbox"
+              (change)="includeNoLinks = !includeNoLinks"
+              [checked]="includeNoLinks"
+            />
+            Include songs with no links
+          </label>
+        </div>
+
+        <label class="advanced-search-field" for="search-select-filter-combination">
+          <span>Match Search Fields</span>
+          <select
+            id="search-select-filter-combination"
+            class="app-select advanced-search-select"
+            [value]="searchCombination"
+            (change)="searchCombination = $any($event.target).value"
+          >
+            <option value="or" title="A song needs to match at least one search field">
+              Any field (OR)
+            </option>
+            <option value="and" title="A song needs to match every search field">
+              All fields (AND)
+            </option>
+          </select>
+        </label>
+
+        <div class="advanced-search-number-grid">
+          <label class="advanced-search-field" for="search-input-max-other-people">
+            <span class="tooltip">
+              Max Other People
+              <span class="tooltiptext">
+                Maximum number of people outside the Artist or Composer filter who may be credited
+              </span>
+            </span>
+            <input
+              id="search-input-max-other-people"
+              #maximumOtherPeopleInput
+              class="app-input"
+              type="number"
+              min="0"
+              step="1"
+              (keyup.enter)="submitSearch()"
+              (input)="maximumOtherPeople = maximumOtherPeopleInput.value"
+              [value]="maximumOtherPeople"
+            />
+          </label>
+
+          <label class="advanced-search-field" for="search-input-min-group-members">
+            <span class="tooltip">
+              Min Group Members
+              <span class="tooltiptext">
+                Minimum number of people from an Artist or Composer group who must be credited
+              </span>
+            </span>
+            <input
+              id="search-input-min-group-members"
+              #minimumGroupMembersInput
+              class="app-input"
+              type="number"
+              min="0"
+              step="1"
+              (keyup.enter)="submitSearch()"
+              (input)="minimumGroupMembers = minimumGroupMembersInput.value"
+              [value]="minimumGroupMembers"
+            />
+          </label>
+        </div>
+
+        <label class="app-checkbox" for="search-adv-checkbox-ignore-duplicates">
+          <input
+            id="search-adv-checkbox-ignore-duplicates"
+            type="checkbox"
+            (change)="ignoreDuplicate = !ignoreDuplicate"
+            [checked]="ignoreDuplicate"
+          />
+          Ignore duplicates
+        </label>
+      </section>
+
+      <section class="advanced-search-section" aria-labelledby="advanced-search-types-heading">
+        <div class="advanced-search-heading-row">
+          <h2 id="advanced-search-types-heading" class="advanced-search-heading">Song Filters</h2>
+          <button
+            id="search-adv-help-filters"
+            type="button"
+            class="app-icon-button search-help-button"
+            title="Help understanding filters"
+            aria-label="Help understanding filters"
+            (click)="openFiltersHelp()"
+          >
+            <i class="fa fa-question-circle" aria-hidden="true"></i>
+          </button>
+        </div>
+
+        <div class="advanced-search-filter-row">
+          <span class="advanced-search-filter-label">Song Type</span>
+          <div class="advanced-search-filter-options">
+            <label class="app-checkbox" for="search-adv-checkbox-op">
+              <input
+                id="search-adv-checkbox-op"
+                type="checkbox"
+                (change)="showOpenings = !showOpenings"
+                [checked]="showOpenings"
+              />
+              OP
+            </label>
+            <label class="app-checkbox" for="search-adv-checkbox-ed">
+              <input
+                id="search-adv-checkbox-ed"
+                type="checkbox"
+                (change)="showEndings = !showEndings"
+                [checked]="showEndings"
+              />
+              ED
+            </label>
+            <label class="app-checkbox" for="search-adv-checkbox-ins">
+              <input
+                id="search-adv-checkbox-ins"
+                type="checkbox"
+                (change)="showInserts = !showInserts"
+                [checked]="showInserts"
+              />
+              INS
+            </label>
+          </div>
+        </div>
+
+        <div class="advanced-search-filter-row">
+          <span class="advanced-search-filter-label">Broadcast</span>
+          <div class="advanced-search-filter-options">
+            <label class="app-checkbox" for="search-adv-checkbox-normal-broadcasts">
+              <input
+                id="search-adv-checkbox-normal-broadcasts"
+                type="checkbox"
+                (change)="showNormalBroadcasts = !showNormalBroadcasts"
+                [checked]="showNormalBroadcasts"
+              />
+              Normal
+            </label>
+            <label class="app-checkbox" for="search-adv-checkbox-dubs">
+              <input
+                id="search-adv-checkbox-dubs"
+                type="checkbox"
+                (change)="showDubs = !showDubs"
+                [checked]="showDubs"
+              />
+              Dubs
+            </label>
+            <label class="app-checkbox" for="search-adv-checkbox-rebroadcasts">
+              <input
+                id="search-adv-checkbox-rebroadcasts"
+                type="checkbox"
+                (change)="showRebroadcasts = !showRebroadcasts"
+                [checked]="showRebroadcasts"
+              />
+              Rebroadcasts
+            </label>
+          </div>
+        </div>
+
+        <div class="advanced-search-filter-row">
+          <span class="advanced-search-filter-label">Performance</span>
+          <div class="advanced-search-filter-options">
+            <label class="app-checkbox" for="search-adv-checkbox-standard">
+              <input
+                id="search-adv-checkbox-standard"
+                type="checkbox"
+                (change)="showStandards = !showStandards"
+                [checked]="showStandards"
+              />
+              Standard
+            </label>
+            <label class="app-checkbox" for="search-adv-checkbox-character">
+              <input
+                id="search-adv-checkbox-character"
+                type="checkbox"
+                (change)="showCharacters = !showCharacters"
+                [checked]="showCharacters"
+              />
+              Character
+            </label>
+            <label class="app-checkbox" for="search-adv-checkbox-chanting">
+              <input
+                id="search-adv-checkbox-chanting"
+                type="checkbox"
+                (change)="showChantings = !showChantings"
+                [checked]="showChantings"
+              />
+              Chanting
+            </label>
+            <label class="app-checkbox" for="search-adv-checkbox-instrumental">
+              <input
+                id="search-adv-checkbox-instrumental"
+                type="checkbox"
+                (change)="showInstrumentals = !showInstrumentals"
+                [checked]="showInstrumentals"
+              />
+              Instrumental
+            </label>
+          </div>
+        </div>
+
+        <div class="advanced-search-filter-row">
+          <span class="advanced-search-filter-label">Anime Type</span>
+          <div class="advanced-search-filter-options">
+            <label class="app-checkbox" for="search-adv-checkbox-tv">
+              <input
+                id="search-adv-checkbox-tv"
+                type="checkbox"
+                (change)="showTv = !showTv"
+                [checked]="showTv"
+              />
+              TV
+            </label>
+            <label class="app-checkbox" for="search-adv-checkbox-movie">
+              <input
+                id="search-adv-checkbox-movie"
+                type="checkbox"
+                (change)="showMovie = !showMovie"
+                [checked]="showMovie"
+              />
+              Movie
+            </label>
+            <label class="app-checkbox" for="search-adv-checkbox-ova">
+              <input
+                id="search-adv-checkbox-ova"
+                type="checkbox"
+                (change)="showOva = !showOva"
+                [checked]="showOva"
+              />
+              OVA
+            </label>
+            <label class="app-checkbox" for="search-adv-checkbox-ona">
+              <input
+                id="search-adv-checkbox-ona"
+                type="checkbox"
+                (change)="showOna = !showOna"
+                [checked]="showOna"
+              />
+              ONA
+            </label>
+            <label class="app-checkbox" for="search-adv-checkbox-special">
+              <input
+                id="search-adv-checkbox-special"
+                type="checkbox"
+                (change)="showSpecial = !showSpecial"
+                [checked]="showSpecial"
+              />
+              Special
+            </label>
+            <label class="app-checkbox" for="search-adv-checkbox-doujin">
+              <input
+                id="search-adv-checkbox-doujin"
+                type="checkbox"
+                (change)="showDoujin = !showDoujin"
+                [checked]="showDoujin"
+              />
+              Doujin
+            </label>
+          </div>
+        </div>
+
+        <div class="advanced-search-filter-row">
+          <span class="advanced-search-filter-label">Season</span>
+          <div class="advanced-search-season-range">
+            <label for="search-adv-input-season-start">
+              <span>From</span>
+              <input
+                id="search-adv-input-season-start"
+                #seasonRangeStartInput
+                class="app-input"
+                type="text"
+                maxlength="11"
+                placeholder="Season Year"
+                [value]="seasonRangeStart"
+                (keyup.enter)="submitSearch()"
+                (input)="seasonRangeStart = seasonRangeStartInput.value"
+              />
+            </label>
+            <label for="search-adv-input-season-end">
+              <span>To</span>
+              <input
+                id="search-adv-input-season-end"
+                #seasonRangeEndInput
+                class="app-input"
+                type="text"
+                maxlength="11"
+                placeholder="Season Year"
+                [value]="seasonRangeEnd"
+                (keyup.enter)="submitSearch()"
+                (input)="seasonRangeEnd = seasonRangeEndInput.value"
+              />
+            </label>
+          </div>
+        </div>
+      </section>
     </div>
 
-    <div class="filter-field-row">
-      <label
-        title="Define how the filters will be combine together"
-        for="search-select-filter-combination"
-        >Filters Combination:
-      </label>
-      <select
-        id="search-select-filter-combination"
-        [value]="selectedCombination"
-        (change)="selectFilterCombinationChangeHandler($event)"
-        class="selectFilter"
-      >
-        <option value="Union (OR)" title="A song needs to match at least one of the filters">
-          Union (OR)
-        </option>
-        <option value="Intersection (AND)" title="A song needs to match every filter">
-          Intersection (AND)
-        </option>
-      </select>
-
-      <label class="check" for="search-adv-checkbox-ignore-duplicates"
-        ><input
-          id="search-adv-checkbox-ignore-duplicates"
-          type="checkbox"
-          (change)="ignoreDuplicate = !ignoreDuplicate"
-          [checked]="ignoreDuplicate"
-        />
-        Ignore Duplicates
-      </label>
-    </div>
-
-    <div class="filter-field-row">
-      <span class="filter-group-label">Broadcast:</span>
-      <label class="check" for="search-adv-checkbox-normal-broadcasts"
-        ><input
-          id="search-adv-checkbox-normal-broadcasts"
-          type="checkbox"
-          (change)="showNormalBroadcasts = !showNormalBroadcasts"
-          [checked]="showNormalBroadcasts"
-        />
-        Normal
-      </label>
-      <label class="check" for="search-adv-checkbox-dubs"
-        ><input
-          id="search-adv-checkbox-dubs"
-          type="checkbox"
-          (change)="showDubs = !showDubs"
-          [checked]="showDubs"
-        />
-        Dubs
-      </label>
-      <label class="check" for="search-adv-checkbox-rebroadcasts"
-        ><input
-          id="search-adv-checkbox-rebroadcasts"
-          type="checkbox"
-          (change)="showRebroadcasts = !showRebroadcasts"
-          [checked]="showRebroadcasts"
-        />
-        Rebroadcasts
-      </label>
-    </div>
-
-    <div class="filter-field-row">
-      <span class="filter-group-label">Performance:</span>
-      <label class="check" for="search-adv-checkbox-standard"
-        ><input
-          id="search-adv-checkbox-standard"
-          type="checkbox"
-          (change)="showStandards = !showStandards"
-          [checked]="showStandards"
-        />
-        Standard
-      </label>
-      <label class="check" for="search-adv-checkbox-character"
-        ><input
-          id="search-adv-checkbox-character"
-          type="checkbox"
-          (change)="showCharacters = !showCharacters"
-          [checked]="showCharacters"
-        />
-        Character
-      </label>
-      <label class="check" for="search-adv-checkbox-chanting"
-        ><input
-          id="search-adv-checkbox-chanting"
-          type="checkbox"
-          (change)="showChantings = !showChantings"
-          [checked]="showChantings"
-        />
-        Chanting
-      </label>
-      <label class="check" for="search-adv-checkbox-instrumental"
-        ><input
-          id="search-adv-checkbox-instrumental"
-          type="checkbox"
-          (change)="showInstrumentals = !showInstrumentals"
-          [checked]="showInstrumentals"
-        />
-        Instrumental
-      </label>
-    </div>
-
-    <div class="filter-field-row">
-      <span class="filter-group-label">Media:</span>
-      <label class="check" for="search-adv-checkbox-tv"
-        ><input
-          id="search-adv-checkbox-tv"
-          type="checkbox"
-          (change)="showTv = !showTv"
-          [checked]="showTv"
-        />
-        TV
-      </label>
-      <label class="check" for="search-adv-checkbox-movie"
-        ><input
-          id="search-adv-checkbox-movie"
-          type="checkbox"
-          (change)="showMovie = !showMovie"
-          [checked]="showMovie"
-        />
-        Movie
-      </label>
-      <label class="check" for="search-adv-checkbox-ova"
-        ><input
-          id="search-adv-checkbox-ova"
-          type="checkbox"
-          (change)="showOva = !showOva"
-          [checked]="showOva"
-        />
-        OVA
-      </label>
-      <label class="check" for="search-adv-checkbox-ona"
-        ><input
-          id="search-adv-checkbox-ona"
-          type="checkbox"
-          (change)="showOna = !showOna"
-          [checked]="showOna"
-        />
-        ONA
-      </label>
-      <label class="check" for="search-adv-checkbox-special"
-        ><input
-          id="search-adv-checkbox-special"
-          type="checkbox"
-          (change)="showSpecial = !showSpecial"
-          [checked]="showSpecial"
-        />
-        Special
-      </label>
-      <label class="check" for="search-adv-checkbox-doujin"
-        ><input
-          id="search-adv-checkbox-doujin"
-          type="checkbox"
-          (change)="showDoujin = !showDoujin"
-          [checked]="showDoujin"
-        />
-        Doujin
-      </label>
-    </div>
-
-    <button id="search-btn-advanced" type="button" class="search-btn" (click)="onSearchCallKey()">Search</button>
+    <button id="search-btn-advanced" type="button" class="app-button app-button--primary" (click)="submitSearch()">
+      <i class="fa fa-search" aria-hidden="true"></i> Search
+    </button>
   </div>
+}

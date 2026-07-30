@@ -1,0 +1,47 @@
+:host {
+  display: contents;
+}
+
+.modal-shell-backdrop {
+  z-index: 300;
+}
+
+.modal-shell-content {
+  width: min(640px, 100%);
+  height: min(720px, calc(100vh - 32px));
+  display: flex;
+  flex-direction: column;
+  animation: modal-enter 0.4s;
+}
+
+.modal-shell-header {
+  padding: 14px 16px;
+}
+
+.modal-shell-header h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+@keyframes modal-enter {
+  from {
+    transform: translateY(-30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 640px) {
+  .modal-shell-backdrop {
+    align-items: stretch;
+    padding: 10px;
+  }
+
+  .modal-shell-content {
+    height: calc(100vh - 20px);
+  }
+}

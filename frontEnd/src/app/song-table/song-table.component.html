@@ -1,802 +1,359 @@
-<!-- The Modal -->
-<div *ngIf="showSongInfoPopup" id="song-info-modal" class="modal">
-  <div
-    (click)="this.doubleClickPreventer = !this.doubleClickPreventer"
-    class="modal-content"
-    >
-    <div class="song-modal-header">
-      <div class="song-modal-title-group">
-        <div>
-          <div class="song-modal-title-line">
-            <h2
-              id="song-modal-song-name"
-              class="song-modal-title clickable"
-              title="Copy to clipboard"
-            (click)="copyToClipboard($event, popUpSongName)"
-          >
-            {{ popUpSongName }}
-          </h2>
-          </div>
-          <p
-            id="song-modal-artist"
-            class="song-modal-artist clickable"
-            title="Copy to clipboard"
-            (click)="copyToClipboard($event, popUpArtist)"
-          >
-            by {{ popUpArtist || "Unknown Artist" }}
-          </p>
+@if (activeSong(); as activeSong) {
+  <app-song-info-modal
+    [song]="activeSong"
+    [rowIndex]="activeSongIndex()"
+    [totalRows]="songTable()?.length ?? 0"
+    [showAmqSongId]="showAmqSongId()"
+    (closed)="closeSongInfoPopup()"
+    (copyText)="onModalCopy($event)"
+    (navigate)="navigateSongInfoPopup($event)"
+    (searchStarted)="closeSongInfoPopup()"
+  />
+}
+
+@if (songTable() || searchErrorMessage()) {
+  <div class="table-controls">
+    <div class="table-controls-start">
+      @if (searchErrorMessage()) {
+        <div class="search-error-banner" role="alert">
+          <span class="search-error-banner-icon" aria-hidden="true"><i class="fa fa-exclamation-triangle"></i></span>
+          <span class="search-error-banner-text">
+            <span class="search-error-banner-title">Search Error</span>
+            {{ searchErrorMessage() }}
+          </span>
         </div>
-      </div>
-      <div class="song-modal-header-actions">
-        <span id="song-modal-row-number" class="song-modal-row-number">
-          {{ songInfoPopupIndex + 1 }} / {{ songTable?.length || 0 }}
-        </span>
+      }
+
+      @if (songTable()) {
+        <app-song-table-stats
+          [stats]="tableStats()"
+          [animeTitleLang]="animeTitleLang()"
+          [(open)]="showTableStats"
+          (copyText)="onModalCopy($event)"
+        />
+      }
+    </div>
+
+    @if (songTable()) {
+      <div #columnSettingsArea class="table-controls-actions">
         <button
-          id="song-modal-close"
+          id="table-shuffle"
           type="button"
-          class="song-modal-close"
-          title="Close"
-          aria-label="Close song info"
-          (click)="closeSongInfoPopup(); $event.stopPropagation()"
+          class="app-button app-button--primary"
+          title="Shuffle table order"
+          (click)="shuffleTable()"
         >
-          <i class="fa fa-times" aria-hidden="true"></i>
+          <i class="fa fa-random" aria-hidden="true"></i>
+          Shuffle
         </button>
-      </div>
-    </div>
-
-    <div class="modal-body song-modal-body">
-      <div class="song-modal-overview">
-        <section class="song-modal-panel">
-          <div class="song-modal-panel-header">
-            <h3>Anime</h3>
-            <div class="song-modal-site-links">
-              <a href="{{ popUpannURL }}" target="_blank" title="Anime News Network">
-                <img src="assets/img/ANN_Logo.png" alt="Anime News Network">
-              </a>
-              <a *ngIf="popUpMalID" href="https://myanimelist.net/anime/{{ popUpMalID }}" target="_blank" title="MyAnimeList">
-                <img src="assets/img/MyAnimeList_Logo.png" alt="MyAnimeList">
-              </a>
-              <a *ngIf="popUpAnidbID" href="https://anidb.net/anime/{{ popUpAnidbID }}" target="_blank" title="AniDB">
-                <img src="assets/img/AniDB_Logo.png" alt="AniDB">
-              </a>
-              <a *ngIf="popUpAnilistID" href="https://anilist.co/anime/{{ popUpAnilistID }}" target="_blank" title="AniList">
-                <img src="assets/img/AniList_logo.png" alt="AniList">
-              </a>
-              <a *ngIf="popUpKitsuID" href="https://kitsu.app/anime/{{ popUpKitsuID }}" target="_blank" title="Kitsu">
-                <img src="assets/img/Kitsu_Logo.png" alt="Kitsu">
-              </a>
-            </div>
-          </div>
-          <dl class="song-modal-facts">
-            <div>
-              <dt>English</dt>
-              <dd id="song-modal-anime-english" class="clickable" title="Copy to clipboard" (click)="copyToClipboard($event, popUpAnimeENName)">
-                {{ popUpAnimeENName || "-" }}
-              </dd>
-            </div>
-            <div>
-              <dt>Japanese</dt>
-              <dd id="song-modal-anime-japanese" class="clickable" title="Copy to clipboard" (click)="copyToClipboard($event, popUpAnimeJPName)">
-                {{ popUpAnimeJPName || "-" }}
-              </dd>
-            </div>
-            <div>
-              <dt>Season</dt>
-              <dd class="song-modal-fact-value">
-                <i
-                  *ngIf="popUpVintage"
-                  class="fa fa-search song-modal-fact-action"
-                  title="Search this season"
-                  (click)="searchSeason(popUpVintage)"
-                ></i>
-                <span id="song-modal-anime-season" class="clickable" title="Copy to clipboard" (click)="copyToClipboard($event, popUpVintage)">
-                  {{ popUpVintage || "-" }}
-                </span>
-              </dd>
-            </div>
-            <div>
-              <dt>Media</dt>
-              <dd id="song-modal-anime-media" class="clickable" title="Copy to clipboard" (click)="copyToClipboard($event, popUpAnimeType)">
-                {{ popUpAnimeType || "-" }}
-              </dd>
-            </div>
-            <div>
-              <dt>ANN ID</dt>
-              <dd class="song-modal-fact-value">
-                <i
-                  *ngIf="popUpannId"
-                  class="fa fa-search song-modal-fact-action"
-                  title="Search this ANN ID"
-                  (click)="searchAnnId(popUpannId)"
-                ></i>
-                <span id="song-modal-anime-ann-id" class="clickable" title="Copy to clipboard" (click)="copyToClipboard($event, popUpannId)">
-                  {{ popUpannId }}
-                </span>
-              </dd>
-            </div>
-            <div *ngIf="popUpAnimeAltName.length > 0">
-              <dt>Alt Title</dt>
-              <dd id="song-modal-anime-alt-title">
-                <ng-container *ngFor="let altName of popUpAnimeAltName; let last = last">
-                  <span class="clickable" title="Copy to clipboard" (click)="copyToClipboard($event, altName)">{{ altName }}</span><br *ngIf="!last">
-                </ng-container>
-              </dd>
-            </div>
-          </dl>
-        </section>
-
-        <section class="song-modal-panel">
-          <div class="song-modal-panel-header">
-            <h3>Song</h3>
-          </div>
-          <dl class="song-modal-facts">
-            <div>
-              <dt>Type</dt>
-              <dd id="song-modal-song-type" class="clickable" title="Copy to clipboard" (click)="copyToClipboard($event, popUpSongType)">
-                {{ popUpSongType || "-" }}
-              </dd>
-            </div>
-            <div>
-              <dt>Difficulty</dt>
-              <dd id="song-modal-song-difficulty" class="clickable" title="Copy to clipboard" (click)="copyToClipboard($event, popUpSongDiff)">
-                {{ popUpSongDiff ? popUpSongDiff + "%" : "-" }}
-              </dd>
-            </div>
-            <div>
-              <dt>Broadcast</dt>
-              <dd id="song-modal-song-broadcast" class="clickable" title="Copy to clipboard" (click)="copyToClipboard($event, popUpBroadcast)">
-                {{ popUpBroadcast || "-" }}
-              </dd>
-            </div>
-            <div>
-              <dt>Performance</dt>
-              <dd id="song-modal-song-performance" class="clickable" title="Copy to clipboard" (click)="copyToClipboard($event, popUpSongCat)">
-                {{ popUpSongCat || "-" }}
-              </dd>
-            </div>
-            <div>
-              <dt>ANN Song ID</dt>
-              <dd id="song-modal-ann-song-id" class="clickable" title="Copy to clipboard" (click)="copyToClipboard($event, popUpannSongId)">{{ popUpannSongId || "-" }}</dd>
-            </div>
-            <div>
-              <dt>Length</dt>
-              <dd id="song-modal-song-length" class="clickable" title="Copy to clipboard" (click)="copyToClipboard($event, popUpSongLengthFormatted)">
-                {{ popUpSongLengthFormatted || "-" }}
-              </dd>
-            </div>
-          </dl>
-        </section>
-      </div>
-
-      <section *ngIf="popUpHDLink || popUpMDLink || popUpAudioLink" class="song-modal-links">
-        <h3>Links</h3>
-        <div class="song-modal-links-list">
-          <div *ngIf="popUpHDLink" class="song-modal-link">
-            <span class="song-modal-link-kind">720p</span>
-            <a id="song-modal-720-link" class="song-modal-link-file" target="_blank" href="{{ popUpHDLink }}" title="{{ popUpHDName }}">
-              {{ popUpHDName }}
-            </a>
-            <button type="button" class="song-modal-link-copy" title="Copy to clipboard" (click)="copyToClipboard($event, popUpHDLink)">
-              <i class="fa fa-clone" aria-hidden="true"></i>
-            </button>
-          </div>
-          <div *ngIf="popUpMDLink" class="song-modal-link">
-            <span class="song-modal-link-kind">480p</span>
-            <a id="song-modal-480-link" class="song-modal-link-file" target="_blank" href="{{ popUpMDLink }}" title="{{ popUpMDName }}">
-              {{ popUpMDName }}
-            </a>
-            <button type="button" class="song-modal-link-copy" title="Copy to clipboard" (click)="copyToClipboard($event, popUpMDLink)">
-              <i class="fa fa-clone" aria-hidden="true"></i>
-            </button>
-          </div>
-          <div *ngIf="popUpAudioLink" class="song-modal-link">
-            <span class="song-modal-link-kind">MP3</span>
-            <a id="song-modal-mp3-link" class="song-modal-link-file" target="_blank" href="{{ popUpAudioLink }}" title="{{ popUpAudioName }}">
-              {{ popUpAudioName }}
-            </a>
-            <button type="button" class="song-modal-link-copy" title="Copy to clipboard" (click)="copyToClipboard($event, popUpAudioLink)">
-              <i class="fa fa-clone" aria-hidden="true"></i>
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <section class="song-modal-credit-details">
-        <h4 *ngIf="popUpArtistsInfo.length > 0" class="song-modal-credit-heading">Artists</h4>
-        <div *ngIf="popUpArtistsInfo.length > 0" class="grid" [ngStyle]="getGridStyle(popUpArtistsInfo.length)">
-          <div *ngFor="let artist of popUpArtistsInfo">
-            <p class="song-modal-credit-primary">
-              <i
-                *ngIf="!rankedStatus.active"
-                title="Search songs sung by this artist"
-                (click)="searchArtistIds(artist)"
-                class="fa fa-search table-action-icon song-modal-credit-search"
-              ></i>
-              <span
-                class="popUpText"
-                title="Copy to clipboard"
-                (click)="copyToClipboard($event, artist['names'][0])"
-                >{{ artist["names"][0] }}</span
-              >
-            </p>
-
-          <p
-            *ngIf="artist['names'].length > 1"
-            class="song-modal-credit-subheading"
-          >
-            <b>Known as:</b>
-          </p>
-          <div
-            *ngIf="artist['names'].length > 1"
-            class="subGrid"
-            [ngStyle]="getSubGridStyle(popUpArtistsInfo.length)"
-          >
-            <div *ngFor="let name of artist['names'] | slice: 1">
-              <span
-                class="popUpText"
-                title="Copy to clipboard"
-                (click)="copyToClipboard($event, name)"
-                >{{ name }}</span
-              >
-            </div>
-          </div>
-
-          <p
-            *ngIf="artist['members'] != undefined"
-            class="song-modal-credit-subheading"
-          >
-            <b>Comprised of:</b>
-          </p>
-          <div
-            *ngIf="artist['members'] != undefined"
-            class="subGrid"
-            [ngStyle]="getSubGridStyle(popUpArtistsInfo.length)"
-          >
-            <div *ngFor="let member of artist['members']">
-              <i
-                *ngIf="!rankedStatus.active"
-                title="Search songs sung by this member"
-                (click)="searchArtistIds(member)"
-                class="fa fa-search table-action-icon song-modal-credit-search"
-              ></i>
-              <span
-                class="popUpText"
-                title="Copy to clipboard"
-                (click)="copyToClipboard($event, member.names[0])"
-                >{{ member.names[0] }}</span
-              >
-            </div>
-          </div>
-
-          <p
-            *ngIf="artist['groups'] != undefined"
-            class="song-modal-credit-subheading"
-          >
-            <b>Part of:</b>
-          </p>
-          <div
-            *ngIf="artist['groups'] != undefined"
-            class="subGrid"
-            [ngStyle]="getSubGridStyle(popUpArtistsInfo.length)"
-          >
-            <div *ngFor="let group of artist['groups']">
-              <i
-                *ngIf="!rankedStatus.active"
-                title="Search songs sung by this group"
-                (click)="searchArtistIds(group)"
-                class="fa fa-search table-action-icon song-modal-credit-search"
-              ></i>
-              <span
-                class="popUpText"
-                title="Copy to clipboard"
-                (click)="copyToClipboard($event, group.names[0])"
-                >{{ group.names[0] }}</span
-              >
-            </div>
-          </div>
-          </div>
-        </div>
-
-        <h4
-          *ngIf="popUpComposersInfo.length > 0"
-          class="song-modal-credit-heading"
-        >
-          Composers
-        </h4>
-        <div *ngIf="popUpComposersInfo.length > 0" class="grid" [ngStyle]="getGridStyle(popUpComposersInfo.length)">
-          <div *ngFor="let composer of popUpComposersInfo">
-            <p class="song-modal-credit-primary">
-              <i
-                *ngIf="!rankedStatus.active"
-                title="Search songs composed by this composer"
-                (click)="searchComposerIds(composer)"
-                class="fa fa-search table-action-icon song-modal-credit-search"
-              ></i>
-              <span
-                class="popUpText"
-                title="Copy to clipboard"
-                (click)="copyToClipboard($event, composer['names'][0])"
-                >{{ composer["names"][0] }}</span
-              >
-            </p>
-
-          <p
-            *ngIf="composer['names'].length > 1"
-            class="song-modal-credit-subheading"
-          >
-            <b>Known as:</b>
-          </p>
-          <div
-            *ngIf="composer['names'].length > 1"
-            class="subGrid"
-            [ngStyle]="getSubGridStyle(popUpComposersInfo.length)"
-          >
-            <div *ngFor="let name of composer['names'] | slice: 1">
-              <span
-                class="popUpText"
-                title="Copy to clipboard"
-                (click)="copyToClipboard($event, name)"
-                >{{ name }}</span
-              >
-            </div>
-          </div>
-
-          <p
-            *ngIf="composer['members'] != undefined"
-            class="song-modal-credit-subheading"
-          >
-            <b>Comprised of:</b>
-          </p>
-          <div
-            *ngIf="composer['members'] != undefined"
-            class="subGrid"
-            [ngStyle]="getSubGridStyle(popUpComposersInfo.length)"
-          >
-            <div *ngFor="let member of composer['members']">
-              <i
-                *ngIf="!rankedStatus.active"
-                title="Search songs composed by this member"
-                (click)="searchComposerIds(member)"
-                class="fa fa-search table-action-icon song-modal-credit-search"
-              ></i>
-              <span
-                class="popUpText"
-                title="Copy to clipboard"
-                (click)="copyToClipboard($event, member.names[0])"
-                >{{ member.names[0] }}</span
-              >
-            </div>
-          </div>
-
-          <p
-            *ngIf="composer['groups'] != undefined"
-            class="song-modal-credit-subheading"
-          >
-            <b>Part of:</b>
-          </p>
-          <div
-            *ngIf="composer['groups'] != undefined"
-            class="subGrid"
-            [ngStyle]="getSubGridStyle(popUpComposersInfo.length)"
-          >
-            <div *ngFor="let group of composer['groups']">
-              <i
-                *ngIf="!rankedStatus.active"
-                title="Search songs composed by this group"
-                (click)="searchComposerIds(group)"
-                class="fa fa-search table-action-icon song-modal-credit-search"
-              ></i>
-              <span
-                class="popUpText"
-                title="Copy to clipboard"
-                (click)="copyToClipboard($event, group.names[0])"
-                >{{ group.names[0] }}</span
-              >
-            </div>
-          </div>
-          </div>
-        </div>
-
-        <h4
-          *ngIf="popUpArrangersInfo.length > 0"
-          class="song-modal-credit-heading"
-        >
-          Arrangers
-        </h4>
-        <div *ngIf="popUpArrangersInfo.length > 0" class="grid" [ngStyle]="getGridStyle(popUpArrangersInfo.length)">
-          <div *ngFor="let arranger of popUpArrangersInfo">
-            <p class="song-modal-credit-primary">
-              <i
-                *ngIf="!rankedStatus.active"
-                title="Search songs composed by this arranger"
-                (click)="searchComposerIds(arranger)"
-                class="fa fa-search table-action-icon song-modal-credit-search"
-              ></i>
-              <span
-                class="popUpText"
-                title="Copy to clipboard"
-                (click)="copyToClipboard($event, arranger['names'][0])"
-                >{{ arranger["names"][0] }}</span
-              >
-            </p>
-
-          <p
-            *ngIf="arranger['names'].length > 1"
-            class="song-modal-credit-subheading"
-          >
-            <b>Known as:</b>
-          </p>
-          <div
-            *ngIf="arranger['names'].length > 1"
-            class="subGrid"
-            [ngStyle]="getSubGridStyle(popUpArrangersInfo.length)"
-          >
-            <div *ngFor="let name of arranger['names'] | slice: 1">
-              <span
-                class="popUpText"
-                title="Copy to clipboard"
-                (click)="copyToClipboard($event, name)"
-                >{{ name }}</span
-              >
-            </div>
-          </div>
-
-          <p
-            *ngIf="arranger['members'] != undefined"
-            class="song-modal-credit-subheading"
-          >
-            <b>Comprised of:</b>
-          </p>
-          <div
-            *ngIf="arranger['members'] != undefined"
-            class="subGrid"
-            [ngStyle]="getSubGridStyle(popUpArrangersInfo.length)"
-          >
-            <div *ngFor="let member of arranger['members']">
-              <i
-                *ngIf="!rankedStatus.active"
-                title="Search songs composed by this member"
-                (click)="searchComposerIds(member)"
-                class="fa fa-search table-action-icon song-modal-credit-search"
-              ></i>
-              <span
-                class="popUpText"
-                title="Copy to clipboard"
-                (click)="copyToClipboard($event, member.names[0])"
-                >{{ member.names[0] }}</span
-              >
-            </div>
-          </div>
-
-          <p
-            *ngIf="arranger['groups'] != undefined"
-            class="song-modal-credit-subheading"
-          >
-            <b>Part of:</b>
-          </p>
-          <div
-            *ngIf="arranger['groups'] != undefined"
-            class="subGrid"
-            [ngStyle]="getSubGridStyle(popUpArrangersInfo.length)"
-          >
-            <div *ngFor="let group of arranger['groups']">
-              <i
-                *ngIf="!rankedStatus.active"
-                title="Search songs composed by this group"
-                (click)="searchComposerIds(group)"
-                class="fa fa-search table-action-icon song-modal-credit-search"
-              ></i>
-              <span
-                class="popUpText"
-                title="Copy to clipboard"
-                (click)="copyToClipboard($event, group.names[0])"
-                >{{ group.names[0] }}</span
-              >
-            </div>
-          </div>
-          </div>
-        </div>
-      </section>
-      <br />
-    </div>
-  </div>
-</div>
-
-<div class="table-controls" *ngIf="songTable || searchErrorMessage">
-  <div class="table-controls-start">
-    <div *ngIf="searchErrorMessage" class="search-error-banner" role="alert">
-      <span class="search-error-banner-icon" aria-hidden="true"><i class="fa fa-exclamation-triangle"></i></span>
-      <span class="search-error-banner-text">
-        <span class="search-error-banner-title">Search Error</span>
-        {{ searchErrorMessage }}
-      </span>
-    </div>
-
-    <div *ngIf="songTable" class="table-results-summary">
-      <span class="table-results-label">Results: {{ tableStats.songCount }}</span>
-      <div class="table-stats-popover">
-        <button
-          type="button"
-          class="table-stats-info"
-          aria-label="Table statistics"
-          [attr.aria-expanded]="showTableStats"
-          (click)="toggleTableStats($event)"
-        >
-          <i class="fa fa-info-circle" aria-hidden="true"></i>
+        <button id="column-settings-toggle" type="button" class="app-button app-button--primary" title="Column settings" (click)="toggleColumnSettings($event)">
+          Columns ({{ tableHeaders().length }}/{{ availableColumns.length }})
         </button>
 
-        <div
-          id="table-stats-panel"
-          class="table-stats-panel"
-          *ngIf="showTableStats"
-          role="region"
-          aria-label="Table statistics"
-        >
-          <div class="table-stats-header">Result statistics</div>
-
-          <div class="table-stats-overview">
-            <div class="table-stats-tile">
-              <span class="table-stats-tile-value">{{ tableStats.uniqueAnime }}</span>
-              <span class="table-stats-tile-label">Unique anime</span>
-            </div>
-            <div class="table-stats-tile">
-              <span class="table-stats-tile-value">{{ tableStats.uniqueArtists }}</span>
-              <span class="table-stats-tile-label">Unique artists</span>
-            </div>
-            <div class="table-stats-tile">
-              <span class="table-stats-tile-value">{{ tableStats.avgDifficulty }}%</span>
-              <span class="table-stats-tile-label">Avg difficulty</span>
-            </div>
-            <div class="table-stats-tile">
-              <span class="table-stats-tile-value">{{ formatAvgLength(tableStats.avgLength) }}</span>
-              <span class="table-stats-tile-label">Avg length</span>
-            </div>
+        @if (showColumnSettings()) {
+          <div id="column-settings-panel" class="app-floating-panel column-settings-panel">
+            @for (column of availableColumns; track column.id) {
+              <label class="column-setting-row">
+                <input
+                  type="checkbox"
+                  [checked]="isColumnVisible(column.id)"
+                  (change)="toggleColumn(column.id, $any($event.target).checked)"
+                />
+                {{ column.visibilityLabel ?? column.header }}
+              </label>
+            }
           </div>
-
-          <section class="table-stats-section">
-            <h4 class="table-stats-section-title">Song types</h4>
-            <div class="table-stats-row" *ngFor="let entry of tableStats.songTypeBreakdown">
-              <div class="table-stats-row-head">
-                <span class="table-stats-row-label">{{ entry.label }}</span>
-                <span class="table-stats-row-meta"
-                  >{{ entry.count }} <span class="table-stats-row-percent">({{ entry.percent }}%)</span></span
-                >
-              </div>
-              <div class="table-stats-bar-track" aria-hidden="true">
-                <div class="table-stats-bar-fill" [style.width.%]="entry.percent"></div>
-              </div>
-            </div>
-          </section>
-
-          <section class="table-stats-section">
-            <h4 class="table-stats-section-title">Broadcasts</h4>
-            <div class="table-stats-row" *ngFor="let entry of tableStats.broadcastBreakdown">
-              <div class="table-stats-row-head">
-                <span class="table-stats-row-label">{{ entry.label }}</span>
-                <span class="table-stats-row-meta"
-                  >{{ entry.count }} <span class="table-stats-row-percent">({{ entry.percent }}%)</span></span
-                >
-              </div>
-              <div class="table-stats-bar-track" aria-hidden="true">
-                <div class="table-stats-bar-fill" [style.width.%]="entry.percent"></div>
-              </div>
-            </div>
-          </section>
-
-          <section class="table-stats-section">
-            <h4 class="table-stats-section-title">Performance</h4>
-            <div class="table-stats-row" *ngFor="let entry of tableStats.performanceBreakdown">
-              <div class="table-stats-row-head">
-                <span class="table-stats-row-label">{{ entry.label }}</span>
-                <span class="table-stats-row-meta"
-                  >{{ entry.count }} <span class="table-stats-row-percent">({{ entry.percent }}%)</span></span
-                >
-              </div>
-              <div class="table-stats-bar-track" aria-hidden="true">
-                <div class="table-stats-bar-fill" [style.width.%]="entry.percent"></div>
-              </div>
-            </div>
-          </section>
-
-          <section class="table-stats-section">
-            <h4 class="table-stats-section-title">Anime types</h4>
-            <div class="table-stats-row" *ngFor="let entry of tableStats.animeTypeBreakdown">
-              <div class="table-stats-row-head">
-                <span class="table-stats-row-label">{{ entry.label }}</span>
-                <span class="table-stats-row-meta"
-                  >{{ entry.count }} <span class="table-stats-row-percent">({{ entry.percent }}%)</span></span
-                >
-              </div>
-              <div class="table-stats-bar-track" aria-hidden="true">
-                <div class="table-stats-bar-fill" [style.width.%]="entry.percent"></div>
-              </div>
-            </div>
-          </section>
-        </div>
+        }
       </div>
-    </div>
+    }
   </div>
+}
 
-  <div class="table-controls-actions" *ngIf="songTable">
-  <button id="column-settings-toggle" class="column-settings-toggle" (click)="toggleColumnSettings($event)">
-    Columns ({{ tableHeaders.length }}/{{ availableColumns.length }})
-  </button>
-
-  <div id="column-settings-panel" class="column-settings-panel" *ngIf="showColumnSettings">
-    <label *ngFor="let column of availableColumns" class="column-setting-row">
-      <input
-        type="checkbox"
-        [checked]="isColumnVisible(column.key)"
-        (change)="toggleColumn(column.key, $any($event.target).checked)"
-      />
-      {{ column.key }}
-    </label>
-  </div>
-  </div>
-</div>
-
-<div class="table-scroll" *ngIf="songTable">
-  <table id="table">
-    <!-- ADD HEADERS -->
-    <tr>
-      <th
-        *ngFor="let col of tableHeaders"
-        [style.cursor]="isColumnSortable(col) ? 'pointer' : 'default'"
-        [style.text-align]="isCenterAlignedColumn(col) ? 'center' : null"
-        [attr.title]="isColumnSortable(col) ? 'Sort by ' + getHeaderLabel(col) : null"
-        (click)="onHeaderClick(col)"
-      >
-        {{ getHeaderLabel(col) }}
-      </th>
-    </tr>
-
-    <!-- BIND ARRAY TO TABLE -->
-    <tr *ngFor="let song of songTable">
-      <ng-container *ngFor="let col of tableHeaders">
-        <td
-          [ngSwitch]="col"
-          [style.text-align]="isCenterAlignedColumn(col) ? 'center' : null"
-          [style.white-space]="
-            col === 'ANN ID' || col === 'Broadcast' || col === 'Song Type' || col === 'Lists' || col === 'Song Links'
-              ? 'nowrap'
-              : null
-          "
-        >
-          <ng-container *ngSwitchCase="'Info'">
-            <i
-              class="fa fa-plus fa-lg table-action-icon"
-              (click)="displaySongInfoPopup(song)"
-              title="More information"
-            ></i>
-          </ng-container>
-
-          <ng-container *ngSwitchCase="'ANN ID'">
-            <i
-              style="margin-right: 4px"
-              class="fa fa-search table-action-icon"
-              title="Search songs in this entry"
-              (click)="searchAnnId(song.annId)"
-            ></i>
-            <span
-              class="copyable"
-              title="Copy to clipboard"
-              (click)="copyToClipboard($event, song.annId + '')"
-              >{{ song.annId }}</span
+@if (songTable()) {
+  <div class="table-scroll">
+    <table id="table">
+      <thead>
+        <tr>
+          @for (column of tableHeaders(); track column.id) {
+            <th
+              scope="col"
+              [style.text-align]="column.centered ? 'center' : null"
+              [attr.aria-sort]="sortColumn() === column.id ? (sortAscending() ? 'ascending' : 'descending') : null"
             >
-          </ng-container>
-
-          <ng-container *ngSwitchCase="'Artist'">
-            <i
-              *ngIf="!rankedStatus.active"
-              style="margin-right: 6px"
-              class="fa fa-search table-action-icon"
-              title="Search songs by this artist(s)"
-              (click)="searchArtistIds(song.artists)"
-            ></i>
-            <span
-              class="copyable"
-              title="Copy to clipboard"
-              (click)="copyToClipboard($event, getColumnCopyValue(song, col))"
-              >{{ getColumnDisplayValue(song, col) }}</span
-            >
-          </ng-container>
-
-          <ng-container *ngSwitchCase="'Composer'">
-            <i
-              *ngIf="!rankedStatus.active"
-              style="margin-right: 6px"
-              class="fa fa-search table-action-icon"
-              title="Search songs composed or arranged by this composer(s)"
-              (click)="searchComposerIds(song.composers)"
-            ></i>
-            <span
-              class="copyable"
-              title="Copy to clipboard"
-              (click)="copyToClipboard($event, getColumnCopyValue(song, col))"
-              >{{ getColumnDisplayValue(song, col) }}</span
-            >
-          </ng-container>
-
-          <ng-container *ngSwitchCase="'Arranger'">
-            <i
-              *ngIf="!rankedStatus.active"
-              style="margin-right: 6px"
-              class="fa fa-search table-action-icon"
-              title="Search songs composed or arranged by this arranger(s)"
-              (click)="searchComposerIds(song.arrangers)"
-            ></i>
-            <span
-              class="copyable"
-              title="Copy to clipboard"
-              (click)="copyToClipboard($event, getColumnCopyValue(song, col))"
-              >{{ getColumnDisplayValue(song, col) }}</span
-            >
-          </ng-container>
-
-          <ng-container *ngSwitchCase="'Lists'">
-            <div class="table-icon-links">
-              <ng-container *ngFor="let site of animeListSites">
-                <a
-                  *ngIf="site.getUrl(song) as siteUrl"
-                  [href]="siteUrl"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="table-site-link"
-                  [title]="site.alt"
+              @if (column.sortable) {
+                <button
+                  type="button"
+                  class="table-sort-button"
+                  [class.is-active]="sortColumn() === column.id"
+                  [title]="'Sort by ' + column.header"
+                  (click)="sortFunction(column.id)"
                 >
-                  <img [src]="site.img" class="table-site-icon" [alt]="site.alt" />
-                </a>
-              </ng-container>
-            </div>
-          </ng-container>
+                  {{ column.header }}
+                  @if (sortColumn() === column.id) {
+                    <i
+                      class="fa table-sort-caret"
+                      [class.fa-caret-up]="sortAscending()"
+                      [class.fa-caret-down]="!sortAscending()"
+                      aria-hidden="true"
+                    ></i>
+                  }
+                </button>
+              } @else {
+                {{ column.header }}
+              }
+            </th>
+          }
+        </tr>
+      </thead>
 
-          <ng-container *ngSwitchCase="'Song Links'">
-            <div *ngIf="!rankedStatus.active" class="table-song-links">
-              <ng-container *ngFor="let link of songDistLinks">
-                <a
-                  *ngIf="shouldShowSongLink(song, link)"
-                  class="table-song-link"
-                  [href]="getDistLink(song[link.field])"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  [title]="link.title"
-                  >{{ link.label }}</a
-                >
-              </ng-container>
-            </div>
-          </ng-container>
+      <tbody>
+        @for (song of songTable(); track song; let rowIndex = $index) {
+          <tr
+            [class.dragging-row]="isDraggingSong(song)"
+            [class.drag-over-before]="isDragOverBefore(song)"
+            [class.drag-over-after]="isDragOverAfter(song)"
+            (dragover)="onRowDragOver($event, song)"
+            (drop)="onRowDrop($event, song)"
+          >
+            @for (column of tableHeaders(); track column.id) {
+              <td
+                [style.text-align]="column.centered ? 'center' : null"
+                [style.white-space]="column.nowrap ? 'nowrap' : null"
+              >
+              @switch (column.id) {
+                @case ('moveRow') {
+                  <button
+                    type="button"
+                    class="app-icon-button app-icon-button--grab"
+                    [id]="'table-row-' + rowIndex + '-move'"
+                    title="Drag to move row"
+                    aria-label="Drag to move row"
+                    draggable="true"
+                    (dragstart)="onRowDragStart($event, song)"
+                    (dragend)="onRowDragEnd()"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28px" height="28px"
+                    fill="currentColor" aria-hidden="true">
+                      <path d="M20 9H4v2h16V9zM4 15h16v-2H4v2z"/>
+                    </svg>
+                  </button>
+                }
 
-          <ng-container *ngSwitchCase="'Play Audio'">
-            <i
-              *ngIf="!rankedStatus.active && song.audio"
-              title="Listen to mp3"
-              (click)="playMP3music(song)"
-              class="fa fa-music fa-lg play-icon"
-              [class.active]="isCurrentPlayingSong(song)"
-            ></i>
-          </ng-container>
+                @case ('info') {
+                  <button
+                    type="button"
+                    class="app-icon-button"
+                    [id]="'table-row-' + rowIndex + '-info'"
+                    title="More information"
+                    aria-label="More information"
+                    (click)="displaySongInfoPopup(song)"
+                  >
+                    <i class="fa fa-plus" aria-hidden="true"></i>
+                  </button>
+                }
 
-          <ng-container *ngSwitchCase="'Delete Row'">
-            <span title="Delete song from list" (click)="deleteRowEntry(song)">
-              <i class="fa fa-trash fa-lg table-action-icon" aria-hidden="true"></i>
-            </span>
-          </ng-container>
+                @case ('rowNumber') {
+                  {{ rowIndex + 1 }}
+                }
 
-          <ng-container *ngSwitchDefault>
-            <span
-              class="copyable"
-              title="Copy to clipboard"
-              (click)="copyToClipboard($event, getColumnCopyValue(song, col))"
-              >{{ getColumnDisplayValue(song, col) }}</span
-            >
-          </ng-container>
-        </td>
-      </ng-container>
-    </tr>
-  </table>
-</div>
+                @case ('annId') {
+                  <span class="table-inline-action">
+                    <button
+                      type="button"
+                      class="app-icon-button app-icon-button--inline"
+                      title="Search songs in this entry"
+                      aria-label="Search songs in this entry"
+                      (click)="searchAnnId(song.annId)"
+                    >
+                      <i class="fa fa-search" aria-hidden="true"></i>
+                    </button>
+                    <span
+                      class="app-copyable"
+                      title="Copy to clipboard"
+                      (click)="copyToClipboard($event, song.annId + '')"
+                      >{{ song.annId }}</span
+                    >
+                  </span>
+                }
 
-<!-- Create the pop-up with the text "copied" -->
-<div class="clipboardPopUp" *ngIf="show" [ngStyle]="clipboardPopUpStyle">
-  Copied
-</div>
+                @case ('artist') {
+                  <span class="table-inline-action">
+                    @if (!rankedActive()) {
+                      <button
+                        type="button"
+                        class="app-icon-button app-icon-button--inline"
+                        title="Search songs by this artist(s)"
+                        aria-label="Search songs by this artist(s)"
+                        (click)="searchArtistIds(song.artists)"
+                      >
+                        <i class="fa fa-search" aria-hidden="true"></i>
+                      </button>
+                    }
+                    <span
+                      class="app-copyable"
+                      title="Copy to clipboard"
+                      (click)="copyToClipboard($event, getColumnCopyValue(song, column.id))"
+                      >{{ getColumnDisplayValue(song, column.id) }}</span
+                    >
+                  </span>
+                }
+
+                @case ('composer') {
+                  <span class="table-inline-action">
+                    @if (!rankedActive()) {
+                      <button
+                        type="button"
+                        class="app-icon-button app-icon-button--inline"
+                        title="Search songs composed or arranged by this composer(s)"
+                        aria-label="Search songs composed or arranged by this composer(s)"
+                        (click)="searchComposerIds(song.composers)"
+                      >
+                        <i class="fa fa-search" aria-hidden="true"></i>
+                      </button>
+                    }
+                    <span
+                      class="app-copyable"
+                      title="Copy to clipboard"
+                      (click)="copyToClipboard($event, getColumnCopyValue(song, column.id))"
+                      >{{ getColumnDisplayValue(song, column.id) }}</span
+                    >
+                  </span>
+                }
+
+                @case ('arranger') {
+                  <span class="table-inline-action">
+                    @if (!rankedActive()) {
+                      <button
+                        type="button"
+                        class="app-icon-button app-icon-button--inline"
+                        title="Search songs composed or arranged by this arranger(s)"
+                        aria-label="Search songs composed or arranged by this arranger(s)"
+                        (click)="searchComposerIds(song.arrangers)"
+                      >
+                        <i class="fa fa-search" aria-hidden="true"></i>
+                      </button>
+                    }
+                    <span
+                      class="app-copyable"
+                      title="Copy to clipboard"
+                      (click)="copyToClipboard($event, getColumnCopyValue(song, column.id))"
+                      >{{ getColumnDisplayValue(song, column.id) }}</span
+                    >
+                  </span>
+                }
+
+                @case ('animeLists') {
+                  <div class="table-icon-links">
+                    @for (site of animeListSites; track site.alt) {
+                      @if (site.getUrl(song); as siteUrl) {
+                        <a
+                          [href]="siteUrl"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="table-site-link"
+                          [title]="site.alt"
+                        >
+                          <img [src]="site.img" class="table-site-icon" [alt]="site.alt" />
+                        </a>
+                      }
+                    }
+                  </div>
+                }
+
+                @case ('songLinks') {
+                  <div class="table-song-links">
+                    @for (link of songDistLinks; track link.field) {
+                      @if (shouldShowSongLink(song, link)) {
+                        <a
+                          class="table-song-link"
+                          [href]="getDistLink(song[link.field])"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          [title]="link.title"
+                          >{{ link.label }}</a
+                        >
+                      }
+                    }
+                  </div>
+                }
+
+                @case ('playAudio') {
+                  @if (isSongPlayable(song)) {
+                    <button
+                      type="button"
+                      class="app-icon-button"
+                      [id]="'table-row-' + rowIndex + '-play'"
+                      [class.app-icon-button--active]="isCurrentAudioSong(song)"
+                      title="Play song"
+                      aria-label="Play song"
+                      (click)="requestAudioPlayback(song)"
+                    >
+                      <i class="fa fa-music" aria-hidden="true"></i>
+                    </button>
+                  }
+                }
+
+                @case ('addPlaylist') {
+                  @let alreadyAdded = isAlreadyInAutoAddPlaylist(song);
+                  <button
+                    type="button"
+                    class="app-icon-button"
+                    [id]="'table-row-' + rowIndex + '-playlist'"
+                    [class.app-icon-button--playlist-added]="alreadyAdded"
+                    [attr.title]="alreadyAdded ? 'Remove from auto-add playlist' : 'Add to playlist'"
+                    [attr.aria-label]="alreadyAdded ? 'Remove from auto-add playlist' : 'Add to playlist'"
+                    [disabled]="!hasAnnSongId(song)"
+                    (click)="openPlaylistPicker(song)"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28px" height="28px"
+                    fill="currentColor" aria-hidden="true">
+                      <path d="M14 10H3v2h11v-2zm0-4H3v2h11V6zm4 8v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM3 16h7v-2H3v2z"/>
+                    </svg>
+                  </button>
+                }
+
+                @case ('deleteRow') {
+                  <button
+                    type="button"
+                    class="app-icon-button"
+                    [id]="'table-row-' + rowIndex + '-delete'"
+                    title="Delete song from list"
+                    aria-label="Delete song from list"
+                    (click)="deleteRowEntry(song)"
+                  >
+                    <i class="fa fa-trash" aria-hidden="true"></i>
+                  </button>
+                }
+
+                @default {
+                  <span
+                    class="app-copyable"
+                    title="Copy to clipboard"
+                    (click)="copyToClipboard($event, getColumnCopyValue(song, column.id))"
+                    >{{ getColumnDisplayValue(song, column.id) }}</span
+                  >
+                }
+              }
+              </td>
+            }
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}
+
+@if (clipboardPopup(); as popup) {
+  <div class="table-clipboard-popup" [style.left]="popup.left" [style.top]="popup.top">
+    Copied
+  </div>
+}
+
+@if (songToAddToPlaylist(); as song) {
+  <app-song-playlist-picker
+    [song]="song"
+    (closed)="closePlaylistPicker()"
+    (managePlaylistsRequested)="managePlaylistsRequested.emit()"
+    (notificationRequested)="notificationRequested.emit($event)"
+  />
+}

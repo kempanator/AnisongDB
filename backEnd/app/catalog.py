@@ -210,7 +210,7 @@ def load_catalog() -> Catalog:
 
     song_type_counts: Counter[int] = Counter()
     broadcast_counts: Counter[str] = Counter()
-    category_counts: Counter[str] = Counter()
+    performance_counts: Counter[str] = Counter()
     anime_type_counts: Counter[str] = Counter()
     seasons: set[str] = set()
     anime_ids: set[int] = set()
@@ -280,7 +280,7 @@ def load_catalog() -> Catalog:
         if song[COL_IS_DUB] == 0 and song[COL_IS_REBROADCAST] == 0:
             broadcast_counts["Normal"] += 1
         if song[COL_SONG_CATEGORY] is not None:
-            category_counts[song[COL_SONG_CATEGORY]] += 1
+            performance_counts[song[COL_SONG_CATEGORY]] += 1
         anime_type_counts[song[COL_ANIME_TYPE] or "No Type"] += 1
         if song[COL_ANIME_VINTAGE] is not None:
             seasons.add(song[COL_ANIME_VINTAGE])
@@ -305,7 +305,7 @@ def load_catalog() -> Catalog:
             "Insert": song_type_counts[3],
         },
         "songs_by_broadcast": dict(broadcast_counts),
-        "songs_by_category": dict(category_counts),
+        "songs_by_performance": dict(performance_counts),
         "songs_by_anime_type": dict(anime_type_counts),
     }
     linked_ids_adapter = TypeAdapter(dict[int, AnnIdLinkedAnimeEntry])

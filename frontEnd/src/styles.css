@@ -2,35 +2,324 @@
 
 @import "vidstack/player/styles/default/theme.css";
 @import "vidstack/player/styles/default/layouts/audio.css";
+@import "font-awesome/css/font-awesome.css";
 
-:root {
-  --primaryColor: #222;
-  --secondaryColor: #1976d2;
-  --songTableHoverColor: #222;
-  --songTableImpairColor: #333;
-  --songTablePairColor: #555;
-  --tableFontColor: white;
-  --textOnPrimary: white;
-  --textOnSecondary: black;
-  --background: #555;
-  --textOnBackground: white;
-  --linkOnBackground: white;
-  --accentColor: rgb(226, 148, 4);
-  --accentColorHover: rgb(244, 168, 24);
-  --accentColorGlow: rgba(226, 148, 4, 0.35);
+/*
+  Theme tokens. ThemeService only sets data-theme on <html>.
+  Use these role names in component CSS.
+*/
+:root,
+[data-theme="classic"] {
+  color-scheme: dark;
 
-  --primaryVidstackColor: #2c2c2c;
-    --audio-bg: var(--primaryVidstackColor);
-    --audio-volume-bg: var(--primaryVidstackColor);
-    --media-menu-bg: var(--primaryVidstackColor);
-    --media-slider-value-bg: var(--primaryVidstackColor)
+  --bg: #555555;
+  --surface: #555555;
+  --surface-2: #333333;
+  --surface-3: #222222;
+
+  --song-info-panel: #4b4b4b;
+  --song-info-grid: #3d3d3d;
+
+  --text: #ffffff;
+  --text-muted: rgba(255, 255, 255, 0.7);
+  --text-on-chrome: #ffffff;
+  --text-on-accent: #ffffff;
+  --link: #ffffff;
+  --link-hover: rgb(244, 168, 24);
+
+  --chrome: #222222;
+  --accent: rgb(226, 148, 4);
+  --accent-hover: rgb(244, 168, 24);
+  --accent-glow: rgba(226, 148, 4, 0.35);
+
+  --success: #22c55e;
+  --warning: #ffcc00;
+  --warning-bg: rgba(255, 204, 0, 0.1);
+  --warning-glow: rgba(255, 204, 0, 0.35);
+  --error: #ff4d4d;
+  --error-bg: rgba(255, 77, 77, 0.1);
+
+  --border: #7e7e7e;
+  --track: #222222;
+  --player: #2c2c2c;
+
+  /* Vidstack bridge: layout colorScheme is set from ThemeService */
+  --audio-bg: var(--player);
+  --audio-volume-bg: var(--player);
+  --media-menu-bg: var(--player);
+  --media-slider-value-bg: var(--player);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #15191d;
+  --surface: #252a2f;
+  --surface-2: #20252a;
+  --surface-3: #1b2025;
+
+  --song-info-panel: #20252a;
+  --song-info-grid: #1b2025;
+
+  --text: #e8eaed;
+  --text-muted: rgba(232, 234, 237, 0.7);
+  --text-on-chrome: #f8fafc;
+  --text-on-accent: #f8fafc;
+  --link: #8ab4f8;
+  --link-hover: #60a5fa;
+
+  --chrome: #0b0f14;
+  --accent: #3b82f6;
+  --accent-hover: #60a5fa;
+  --accent-glow: rgba(59, 130, 246, 0.36);
+
+  --success: #22c55e;
+  --warning: #ffcc00;
+  --warning-bg: rgba(255, 204, 0, 0.1);
+  --warning-glow: rgba(255, 204, 0, 0.35);
+  --error: #ff4d4d;
+  --error-bg: rgba(255, 77, 77, 0.1);
+
+  --border: #454b52;
+  --track: #343b42;
+  --player: #14191e;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #fafafa;
+  --surface: #ffffff;
+  --surface-2: #f3f4f6;
+  --surface-3: #e5e7eb;
+
+  --song-info-panel: #f3f4f6;
+  --song-info-grid: #e5e7eb;
+
+  --text: #0f172a;
+  --text-muted: rgba(15, 23, 42, 0.62);
+  --text-on-chrome: #ffffff;
+  --text-on-accent: #ffffff;
+  --link: #3b82f6;
+  --link-hover: #60a5fa;
+
+  --chrome: #4b5563;
+  --accent: #3b82f6;
+  --accent-hover: #60a5fa;
+  --accent-glow: rgba(37, 99, 235, 0.28);
+
+  --success: #15803d;
+  --warning: #a16207;
+  --warning-bg: rgba(161, 98, 7, 0.1);
+  --warning-glow: rgba(161, 98, 7, 0.3);
+  --error: #b91c1c;
+  --error-bg: rgba(185, 28, 28, 0.1);
+
+  --border: #d1d5db;
+  --track: #d1d5db;
+  --player: #f3f4f6;
+}
+
+html {
+  scrollbar-gutter: stable;
 }
 
 body {
   margin: 0;
-  background-color: var(--background);
-  color: var(--textOnBackground);
-  font-family: "Arial", sans-serif;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", sans-serif;
+}
+
+a {
+  color: var(--link);
+}
+
+a:hover {
+  color: var(--link-hover);
+}
+
+/*
+  Shared UI conventions:
+  - Reusable primitives use the app-* prefix.
+  - Primitive variants use --modifier.
+  - Component layout classes use a component prefix (settings-*, playlist-*, table-*, etc.).
+  - State classes use is-*.
+*/
+
+.app-input,
+.app-select {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 32px;
+  border: 1px solid var(--border);
+  background-color: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.app-input {
+  padding: 7px 10px;
+}
+
+.app-select {
+  padding: 6px;
+  cursor: pointer;
+}
+
+.app-input:hover,
+.app-select:hover {
+  border-color: var(--accent);
+}
+
+.app-input:focus,
+.app-input:focus-visible,
+.app-select:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+.app-input::placeholder {
+  color: var(--text);
+  opacity: 0.5;
+}
+
+.app-input[type="search"] {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.app-input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  background-color: var(--text);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath stroke='%23000' stroke-width='1.5' stroke-linecap='round' d='M2 2l8 8M10 2L2 10'/%3E%3C/svg%3E")
+    center / 12px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath stroke='%23000' stroke-width='1.5' stroke-linecap='round' d='M2 2l8 8M10 2L2 10'/%3E%3C/svg%3E")
+    center / 12px no-repeat;
+  opacity: 0.75;
+}
+
+.app-input[type="search"]::-webkit-search-cancel-button:hover,
+.app-input[type="search"]::-moz-search-clear-button:hover {
+  opacity: 1;
+}
+
+.app-input[type="search"]::-moz-search-clear-button {
+  cursor: pointer;
+  opacity: 0.75;
+}
+
+.app-input[type="number"] {
+  appearance: textfield;
+}
+
+.app-input[type="number"]::-webkit-outer-spin-button,
+.app-input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.app-select option {
+  background-color: var(--surface-2);
+  color: var(--text);
+}
+
+.app-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  box-sizing: border-box;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.app-button:hover:not(:disabled),
+.app-button:focus-visible {
+  border-color: var(--accent);
+}
+
+.app-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+.app-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.app-button--primary {
+  min-height: 32px;
+  padding: 6px 10px;
+  border-color: var(--chrome);
+  background: var(--chrome);
+  color: var(--text-on-chrome);
+}
+
+.app-button--accent:hover:not(:disabled),
+.app-button--accent:focus-visible {
+  color: var(--accent);
+}
+
+.app-button--compact {
+  min-height: 30px;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.app-button--full {
+  width: 100%;
+}
+
+.app-button--danger:hover:not(:disabled),
+.app-button--danger:focus-visible {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.app-tab {
+  box-sizing: border-box;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+}
+
+.app-tab:hover,
+.app-tab:focus-visible {
+  color: var(--text);
+}
+
+.app-tab[aria-selected="true"],
+.app-tab.is-active {
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+}
+
+.app-tab:focus-visible {
+  position: relative;
+  z-index: 2;
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--accent-glow);
 }
 
 .tooltip {
@@ -45,10 +334,10 @@ body {
   box-sizing: border-box;
   width: min(280px, calc(100vw - 24px));
   max-width: min(280px, calc(100vw - 24px));
-  background-color: black;
-  color: #fff;
+  background-color: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
   text-align: left;
-  border-radius: 5px;
   padding: 8px 10px;
   position: absolute;
   z-index: 10;
@@ -59,6 +348,7 @@ body {
   white-space: normal;
   overflow-wrap: anywhere;
   line-height: 1.35;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
   transition: opacity 0.2s;
 }
 
@@ -67,54 +357,148 @@ body {
   opacity: 1;
 }
 
-label.check input[type="checkbox"],
-.column-setting-row input[type="checkbox"] {
-  appearance: none;
-  -webkit-appearance: none;
+label.app-checkbox {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  color: var(--text);
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+:where(label.app-checkbox, .column-setting-row) input[type="checkbox"] {
   box-sizing: border-box;
   width: 13px;
   height: 13px;
   margin: 0;
   flex-shrink: 0;
-  border: 1px solid #7e7e7e;
-  background-color: var(--songTableImpairColor);
   cursor: pointer;
   vertical-align: middle;
-  transition:
-    background-color 0.15s ease,
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
+  accent-color: var(--accent);
 }
 
-label.check input[type="checkbox"]:hover:not(:disabled),
-.column-setting-row input[type="checkbox"]:hover:not(:disabled) {
-  border-color: var(--accentColor);
-}
-
-label.check input[type="checkbox"]:checked,
-.column-setting-row input[type="checkbox"]:checked {
-  background-color: var(--accentColor);
-  border-color: var(--accentColor);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M2 6l3 3 5-5'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: 10px 10px;
-}
-
-label.check input[type="checkbox"]:checked:hover:not(:disabled),
-.column-setting-row input[type="checkbox"]:checked:hover:not(:disabled) {
-  background-color: var(--accentColorHover);
-  border-color: var(--accentColorHover);
-}
-
-label.check input[type="checkbox"]:focus-visible,
-.column-setting-row input[type="checkbox"]:focus-visible {
+:where(label.app-checkbox, .column-setting-row) input[type="checkbox"]:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--accentColorGlow);
+  box-shadow: 0 0 0 2px var(--accent-glow);
 }
 
-label.check input[type="checkbox"]:disabled,
-.column-setting-row input[type="checkbox"]:disabled {
+:where(label.app-checkbox, .column-setting-row) input[type="checkbox"]:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.app-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  padding: 0;
+  margin: 0;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.app-icon-button:hover:not(:disabled),
+.app-icon-button:focus-visible {
+  color: var(--accent);
+}
+
+.app-icon-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+.app-icon-button--inline {
+  font-size: inherit;
+  line-height: 1;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.app-icon-button--grab {
+  cursor: grab;
+}
+
+.app-icon-button--grab:active {
+  cursor: grabbing;
+}
+
+.app-icon-button--active,
+.app-icon-button[aria-expanded="true"] {
+  color: var(--accent);
+}
+
+.app-icon-button--active {
+  -webkit-text-stroke: 0.5px rgba(255, 255, 255, 0.65);
+  text-shadow:
+    0 0 6px var(--accent-glow),
+    0 0 12px var(--accent-glow);
+}
+
+.app-icon-button--playlist-added {
+  color: #9ca3af;
+}
+
+.app-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 16px;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(3px);
+  color: var(--text);
+}
+
+.app-modal-surface {
+  position: relative;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
+}
+
+.app-modal-surface:focus {
+  outline: none;
+}
+
+.app-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--chrome);
+  color: var(--text-on-chrome);
+}
+
+.app-modal-close {
+  flex: 0 0 auto;
+  color: var(--text-on-chrome);
+  font-size: 25px;
+}
+
+.app-floating-panel {
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.app-copyable {
+  cursor: pointer;
+}
+
+.app-copyable:hover {
+  color: var(--accent);
 }

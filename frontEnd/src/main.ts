@@ -1,17 +1,19 @@
-import { enableProdMode } from '@angular/core';
-import { platformBrowserDynamic } from '@angular/platform-browser-dynamic';
-
-import { AppModule } from './app/app.module';
-import { environment } from './environments/environment';
+import { inject, provideAppInitializer } from '@angular/core';
+import { bootstrapApplication } from '@angular/platform-browser';
+import { provideHttpClient } from '@angular/common/http';
+import { AppComponent } from './app/app.component';
+import { AnisongDBApiService } from './app/api/anisong-db-api.service';
 
 import 'vidstack/player';
 import 'vidstack/player/layouts/default';
 import 'vidstack/player/ui';
 
-if (environment.production) {
-  enableProdMode();
-}
-
-platformBrowserDynamic()
-  .bootstrapModule(AppModule)
+bootstrapApplication(AppComponent, {
+  providers: [
+    provideHttpClient(),
+    provideAppInitializer(() => {
+      inject(AnisongDBApiService);
+    }),
+  ],
+})
   .catch((err) => console.error(err));

@@ -57,7 +57,7 @@ class DatabaseTotalsPayload(TypedDict):
     links_by_type: dict[str, int]
     songs_by_type: dict[str, int]
     songs_by_broadcast: dict[str, int]
-    songs_by_category: dict[str, int]
+    songs_by_performance: dict[str, int]
     songs_by_anime_type: dict[str, int]
 
 
