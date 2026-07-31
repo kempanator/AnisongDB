@@ -22,8 +22,8 @@ export interface MediaLinksFilter {
 
 export type SongType = 'opening' | 'ending' | 'insert';
 export type BroadcastType = 'normal' | 'dub' | 'rebroadcast';
-export type SongCategory = 'standard' | 'no_category' | 'instrumental' | 'chanting' | 'character';
-export type AnimeType = 'tv' | 'movie' | 'ova' | 'ona' | 'special' | 'doujin';
+export type SongCategory = 'standard' | 'character' | 'chanting' | 'instrumental' | 'other';
+export type AnimeType = 'tv' | 'movie' | 'ova' | 'ona' | 'special' | 'other';
 
 export interface SeasonFilter {
   start?: string;

@@ -15,8 +15,8 @@ import type { AnimeTitleLanguage } from '../core/services/user-preferences.servi
 
 const SONG_TYPE_SORT_ORDER = ['OP', 'ED', 'IN'];
 const BROADCAST_SORT_ORDER = ['Normal', 'Dub', 'Rebroadcast', 'Dub, Rebroadcast'];
-const PERFORMANCE_SORT_ORDER = ['Standard', 'Character', 'Chanting', 'Instrumental', 'No Category'];
-const ANIME_TYPE_SORT_ORDER = ['TV', 'Movie', 'OVA', 'ONA', 'Special', 'Doujin'];
+const PERFORMANCE_SORT_ORDER = ['Standard', 'Character', 'Chanting', 'Instrumental', 'Other'];
+const ANIME_TYPE_SORT_ORDER = ['TV', 'Movie', 'OVA', 'ONA', 'Special', 'Other'];
 const DIFFICULTY_BUCKET_LABELS = [
   '0–9',
   '10–19',

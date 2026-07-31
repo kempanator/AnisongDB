@@ -10,8 +10,8 @@ SEASON_REGEX = r"^(Winter|Spring|Summer|Fall) \d{4}$"
 EMPTY_FILTER_MESSAGES = {
     "song_types": "At least one song type filter (opening, ending, insert) must be enabled.",
     "broadcasts": "At least one broadcast type filter (normal, dub, rebroadcast) must be enabled.",
-    "song_categories": "At least one performance filter (standard, character, chanting, instrumental, no_category) must be enabled.",
-    "anime_types": "At least one anime type filter (tv, movie, ova, ona, special, doujin) must be enabled.",
+    "song_categories": "At least one performance filter (standard, character, chanting, instrumental, other) must be enabled.",
+    "anime_types": "At least one anime type filter (tv, movie, ova, ona, special, other) must be enabled.",
 }
 
 
@@ -74,8 +74,8 @@ class ComposerSearchFilter(TextSearchFilter):
 LinkType = Literal["audio", "mq", "hq"]
 SongType = Literal["opening", "ending", "insert"]
 BroadcastType = Literal["normal", "dub", "rebroadcast"]
-SongCategory = Literal["standard", "character", "chanting", "instrumental", "no_category"]
-AnimeType = Literal["tv", "movie", "ova", "ona", "special", "doujin"]
+SongCategory = Literal["standard", "character", "chanting", "instrumental", "other"]
+AnimeType = Literal["tv", "movie", "ova", "ona", "special", "other"]
 
 
 class MediaLinksFilter(BaseModel):
@@ -147,11 +147,11 @@ class SongFilterOptions(BaseModel):
         min_length=1,
     )
     song_categories: list[SongCategory] = Field(
-        default_factory=lambda: ["standard", "character", "chanting", "instrumental", "no_category"],
+        default_factory=lambda: ["standard", "character", "chanting", "instrumental", "other"],
         min_length=1,
     )
     anime_types: list[AnimeType] = Field(
-        default_factory=lambda: ["tv", "movie", "ova", "ona", "special", "doujin"],
+        default_factory=lambda: ["tv", "movie", "ova", "ona", "special", "other"],
         min_length=1,
     )
     season: SeasonFilter | None = None
@@ -182,10 +182,12 @@ class SearchRequest(FilteredRequest):
                 "anime_search_filter": {
                     "search": "White Album",
                     "partial_match": True,
+                    "match_case": False,
                 },
                 "artist_search_filter": {
                     "search": "Madoka Yonezawa",
                     "partial_match": True,
+                    "match_case": False,
                     "group_granularity": 0,
                     "max_other_artist": 99,
                 },

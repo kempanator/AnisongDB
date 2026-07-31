@@ -8,9 +8,27 @@ from db_types import *
 
 ALL_SONG_TYPES = frozenset({1, 2, 3})
 ALL_BROADCASTS = frozenset({"Normal", "Dub", "Rebroadcast"})
-ALL_SONG_CATEGORIES = frozenset({"Standard", "No Category", "Chanting", "Instrumental", "Character"})
-ALL_ANIME_TYPES = frozenset({"TV", "Movie", "OVA", "ONA", "Special", "Doujin"})
+CANONICAL_SONG_CATEGORIES = frozenset({"Standard", "Character", "Chanting", "Instrumental"})
+OTHER_SONG_CATEGORY = "Other"
+ALL_SONG_CATEGORIES = CANONICAL_SONG_CATEGORIES | {OTHER_SONG_CATEGORY}
+CANONICAL_ANIME_TYPES = frozenset({"TV", "Movie", "OVA", "ONA", "Special"})
+OTHER_ANIME_TYPE = "Other"
+ALL_ANIME_TYPES = CANONICAL_ANIME_TYPES | {OTHER_ANIME_TYPE}
 SEASON_ORDER = {"Winter": 0, "Spring": 1, "Summer": 2, "Fall": 3}
+
+
+def normalize_song_category(value: str | None) -> str:
+    """Map DB songCategory to a filter bucket; No Category/unknown/missing become Other."""
+    if value in CANONICAL_SONG_CATEGORIES:
+        return value
+    return OTHER_SONG_CATEGORY
+
+
+def normalize_anime_type(value: str | None) -> str:
+    """Map DB animeType to a filter bucket; Doujin/unknown/missing become Other."""
+    if value in CANONICAL_ANIME_TYPES:
+        return value
+    return OTHER_ANIME_TYPE
 
 
 @cache
@@ -134,7 +152,9 @@ class SongFilters:
             return False
 
         if not _value_matches_filter(
-            song[COL_SONG_CATEGORY], self.song_categories, ALL_SONG_CATEGORIES
+            normalize_song_category(song[COL_SONG_CATEGORY]),
+            self.song_categories,
+            ALL_SONG_CATEGORIES,
         ):
             return False
 
@@ -154,7 +174,9 @@ class SongFilters:
                 return False
 
         if not _value_matches_filter(
-            song[COL_ANIME_TYPE], self.anime_types, ALL_ANIME_TYPES
+            normalize_anime_type(song[COL_ANIME_TYPE]),
+            self.anime_types,
+            ALL_ANIME_TYPES,
         ):
             return False
 

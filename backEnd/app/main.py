@@ -32,7 +32,7 @@ CATEGORY_NAMES = {
     "character": "Character",
     "chanting": "Chanting",
     "instrumental": "Instrumental",
-    "no_category": "No Category",
+    "other": "Other",
 }
 ANIME_TYPE_NAMES = {
     "tv": "TV",
@@ -40,7 +40,7 @@ ANIME_TYPE_NAMES = {
     "ova": "OVA",
     "ona": "ONA",
     "special": "Special",
-    "doujin": "Doujin",
+    "other": "Other",
 }
 
 

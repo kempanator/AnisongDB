@@ -34,15 +34,15 @@ type AdvancedFilterSelection = SongTypeSelection & {
   dubs: boolean;
   rebroadcasts: boolean;
   standards: boolean;
-  instrumentals: boolean;
-  chantings: boolean;
   characters: boolean;
+  chantings: boolean;
+  instrumentals: boolean;
   tv: boolean;
   movie: boolean;
   ova: boolean;
   ona: boolean;
   special: boolean;
-  doujin: boolean;
+  other: boolean;
   includeNoLinks: boolean;
 };
 
@@ -177,7 +177,7 @@ function advancedSearchValidationError(state: AdvancedSearchFormState): string |
     return 'At least one performance filter (Standard, Character, Chanting, Instrumental) must be enabled.';
   }
   if (!selectedAnimeTypes(state).length) {
-    return 'At least one anime type filter (TV, Movie, OVA, ONA, Special, Doujin) must be enabled.';
+    return 'At least one anime type filter (TV, Movie, OVA, ONA, Special, Other) must be enabled.';
   }
   if (state.seasonRangeStart.trim() && !parseSeasonQuery(state.seasonRangeStart)) {
     return 'Enter the From season like "Winter 2020".';
@@ -361,8 +361,8 @@ function selectedBroadcasts(state: AdvancedSearchFormState): BroadcastType[] {
 
 function selectedSongCategories(state: AdvancedSearchFormState): SongCategory[] {
   const songCategories: SongCategory[] = [];
-  // UI "Standard" includes uncategorized songs (no separate No Category control).
-  if (state.filters.standards) songCategories.push('standard', 'no_category');
+  // UI "Standard" also includes Other (No Category / uncategorized); no separate Other control.
+  if (state.filters.standards) songCategories.push('standard', 'other');
   if (state.filters.instrumentals) songCategories.push('instrumental');
   if (state.filters.chantings) songCategories.push('chanting');
   if (state.filters.characters) songCategories.push('character');
@@ -376,7 +376,7 @@ function selectedAnimeTypes(state: AdvancedSearchFormState): AnimeType[] {
   if (state.filters.ova) animeTypes.push('ova');
   if (state.filters.ona) animeTypes.push('ona');
   if (state.filters.special) animeTypes.push('special');
-  if (state.filters.doujin) animeTypes.push('doujin');
+  if (state.filters.other) animeTypes.push('other');
   return animeTypes;
 }
 

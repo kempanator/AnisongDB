@@ -67,15 +67,15 @@ export class SearchBarComponent implements OnInit {
   showDubs = true;
   showRebroadcasts = true;
   showStandards = true;
-  showInstrumentals = true;
-  showChantings = true;
   showCharacters = true;
+  showChantings = true;
+  showInstrumentals = true;
   showTv = true;
   showMovie = true;
   showOva = true;
   showOna = true;
   showSpecial = true;
-  showDoujin = true;
+  showOther = true;
   readonly rankedStatus = this.rankedStatusService.status;
 
   ngOnInit(): void {
@@ -153,15 +153,15 @@ export class SearchBarComponent implements OnInit {
         dubs: this.showDubs,
         rebroadcasts: this.showRebroadcasts,
         standards: this.showStandards,
-        instrumentals: this.showInstrumentals,
-        chantings: this.showChantings,
         characters: this.showCharacters,
+        chantings: this.showChantings,
+        instrumentals: this.showInstrumentals,
         tv: this.showTv,
         movie: this.showMovie,
         ova: this.showOva,
         ona: this.showOna,
         special: this.showSpecial,
-        doujin: this.showDoujin,
+        other: this.showOther,
         includeNoLinks: this.includeNoLinks,
       },
     };
