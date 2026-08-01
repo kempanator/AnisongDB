@@ -89,9 +89,9 @@
           <p class="settings-info-text">This affects all AnisongDB data saved in this browser, including settings and playlists.</p>
           <div class="settings-preferences-actions">
             <input #preferencesImportInput type="file" accept="application/json,.json" hidden (change)="onPreferencesImport($event)" />
-            <button id="settings-preferences-import" type="button" class="app-button app-button--accent" (click)="preferencesImportInput.click()"><i class="fa fa-upload" aria-hidden="true"></i> Import</button>
-            <button id="settings-preferences-export" type="button" class="app-button app-button--accent" (click)="exportPreferences()"><i class="fa fa-download" aria-hidden="true"></i> Export</button>
-            <button id="settings-preferences-reset" type="button" class="app-button app-button--accent" (click)="resetSettings()"><i class="fa fa-undo" aria-hidden="true"></i> Reset</button>
+            <button id="settings-preferences-import" type="button" class="app-button" (click)="preferencesImportInput.click()"><i class="fa fa-upload" aria-hidden="true"></i> Import</button>
+            <button id="settings-preferences-export" type="button" class="app-button" (click)="exportPreferences()"><i class="fa fa-download" aria-hidden="true"></i> Export</button>
+            <button id="settings-preferences-reset" type="button" class="app-button" (click)="resetSettings()"><i class="fa fa-undo" aria-hidden="true"></i> Reset</button>
           </div>
         </section>
       </div>

@@ -70,10 +70,6 @@ h3 {
   font-size: 13px;
 }
 
-.playlist-sort-control select {
-  padding: 5px 7px;
-}
-
 .playlist-list {
   margin-top: 10px;
   border: 1px solid var(--border);

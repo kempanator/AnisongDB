@@ -1,10 +1,11 @@
-<app-modal-shell modalTitle="Playlists" titleId="playlist-modal-title" dialogId="playlist-modal" closeButtonId="playlist-modal-close" closeLabel="Close playlists" (closed)="closed.emit()">
-  <div class="playlist-modal-panel" (click)="closeActions()" (scroll)="closeActions()">
+<app-modal-shell modalTitle="Playlists" titleId="playlist-modal-title" dialogId="playlist-modal" closeButtonId="playlist-modal-close" closeLabel="Close playlists"
+  (closed)="closed.emit()" (surfaceClicked)="closeActions()">
+  <div class="playlist-modal-panel" (scroll)="closeActions()">
     <div class="playlist-modal-body">
       @if (playlistService.autoAddPlaylist(); as playlist) {
         <div class="playlist-auto-add-banner" role="status">
           <span>Auto adding songs to <strong>{{ playlist.name }}</strong></span>
-          <button id="playlist-auto-add-cancel" type="button" class="app-button app-button--accent" (click)="playlistService.cancelAutoAdd()">Cancel</button>
+          <button id="playlist-auto-add-cancel" type="button" class="app-button" (click)="playlistService.cancelAutoAdd()">Cancel</button>
         </div>
       }
 
@@ -14,7 +15,7 @@
         <div class="playlist-create-row">
           <input id="playlist-create-name" #newPlaylistName type="text" class="app-input" maxlength="100" placeholder="Playlist name"
             (keyup.enter)="createPlaylist(newPlaylistName)" />
-          <button id="playlist-create-save" type="button" class="app-button app-button--accent" (click)="createPlaylist(newPlaylistName)"><i class="fa fa-save" aria-hidden="true"></i> Save</button>
+          <button id="playlist-create-save" type="button" class="app-button" (click)="createPlaylist(newPlaylistName)"><i class="fa fa-save" aria-hidden="true"></i> Save</button>
         </div>
       </section>
 
@@ -22,7 +23,7 @@
         <h3>Import</h3>
         <p class="playlist-help-text">Load songs from a JSON file into the table. Any file with ANN Song IDs works.</p>
         <input #playlistImportInput type="file" accept="application/json,.json" hidden (change)="onImport($event)" />
-        <button id="playlist-import" type="button" class="app-button app-button--accent playlist-import" (click)="playlistImportInput.click()"><i class="fa fa-upload" aria-hidden="true"></i> Import</button>
+        <button id="playlist-import" type="button" class="app-button playlist-import" (click)="playlistImportInput.click()"><i class="fa fa-upload" aria-hidden="true"></i> Import</button>
       </section>
 
       <section>
@@ -47,8 +48,8 @@
                   <span>{{ formatSongCount(playlist.annSongIds.length) }} · Created {{ formatDate(playlist.createdOn) }}</span>
                 </div>
                 <div class="playlist-row-actions">
-                  <button type="button" class="app-button app-button--accent app-button--compact" [id]="'playlist-' + playlist.id + '-load'" (click)="loadPlaylist(playlist)"><i class="fa fa-folder-open-o" aria-hidden="true"></i> Load</button>
-                  <button type="button" class="app-button app-button--accent app-button--compact" [id]="'playlist-' + playlist.id + '-more'" aria-haspopup="menu"
+                  <button type="button" class="app-button app-button--compact" [id]="'playlist-' + playlist.id + '-load'" (click)="loadPlaylist(playlist)"><i class="fa fa-folder-open-o" aria-hidden="true"></i> Load</button>
+                  <button type="button" class="app-button app-button--compact" [id]="'playlist-' + playlist.id + '-more'" aria-haspopup="menu"
                     [attr.aria-expanded]="openActionsId() === playlist.id" [attr.aria-controls]="'playlist-actions-' + playlist.id"
                     (click)="toggleActions(playlist.id, $event)" (keydown)="onActionsTriggerKeydown(playlist.id, $event)"><i class="fa fa-ellipsis-h" aria-hidden="true"></i> More</button>
                 </div>

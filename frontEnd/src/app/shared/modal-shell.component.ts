@@ -18,7 +18,7 @@ import { ModalFocusTrapDirective } from './modal-focus-trap.directive';
         class="app-modal-surface modal-shell-content"
         appModalFocusTrap
         tabindex="-1"
-        (click)="$event.stopPropagation()"
+        (click)="surfaceClicked.emit($event); $event.stopPropagation()"
       >
         <div class="app-modal-header modal-shell-header">
           <h2 [id]="titleId()">{{ modalTitle() }}</h2>
@@ -47,4 +47,5 @@ export class ModalShellComponent {
   readonly dialogId = input<string>();
   readonly closeButtonId = input<string>();
   readonly closed = output<void>();
+  readonly surfaceClicked = output<MouseEvent>();
 }

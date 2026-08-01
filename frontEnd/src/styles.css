@@ -151,7 +151,7 @@ a:hover {
 .app-select {
   box-sizing: border-box;
   min-width: 0;
-  min-height: 32px;
+  height: 32px;
   border: 1px solid var(--border);
   background-color: var(--surface-2);
   color: var(--text);
@@ -161,11 +161,11 @@ a:hover {
 }
 
 .app-input {
-  padding: 7px 10px;
+  padding: 0 10px;
 }
 
 .app-select {
-  padding: 6px;
+  padding: 0 6px;
   cursor: pointer;
 }
 
@@ -237,8 +237,8 @@ a:hover {
   justify-content: center;
   gap: 5px;
   box-sizing: border-box;
-  min-height: 34px;
-  padding: 7px 10px;
+  height: 32px;
+  padding: 0 10px;
   border: 1px solid var(--border);
   background: var(--surface-2);
   color: var(--text);
@@ -259,13 +259,11 @@ a:hover {
 }
 
 .app-button:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
 .app-button--primary {
-  min-height: 32px;
-  padding: 6px 10px;
   border-color: var(--chrome);
   background: var(--chrome);
   color: var(--text-on-chrome);
@@ -277,8 +275,8 @@ a:hover {
 }
 
 .app-button--compact {
-  min-height: 30px;
-  padding: 6px 8px;
+  height: 28px;
+  padding: 0 8px;
   font-size: 12px;
 }
 
