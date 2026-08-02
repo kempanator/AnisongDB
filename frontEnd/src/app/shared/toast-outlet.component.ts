@@ -22,6 +22,9 @@ import { NotificationService } from '../core/services/notification.service';
       left: 50%;
       bottom: 76px;
       z-index: 350;
+      box-sizing: border-box;
+      width: max-content;
+      max-width: calc(100vw - 24px);
       transform: translateX(-50%);
       padding: 10px 14px;
       border: 1px solid var(--border);
@@ -30,6 +33,8 @@ import { NotificationService } from '../core/services/notification.service';
       font-size: 14px;
       font-weight: 600;
       line-height: 1.3;
+      overflow-wrap: anywhere;
+      text-align: center;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
       pointer-events: none;
       animation: app-toast-fade-in 0.2s ease-out forwards;
@@ -47,6 +52,13 @@ import { NotificationService } from '../core/services/notification.service';
     @keyframes app-toast-fade-out {
       from { opacity: 1; }
       to { opacity: 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .app-toast,
+      .app-toast-exit {
+        animation: none;
+      }
     }
   `],
 })

@@ -1,28 +1,6 @@
-<div class="app-modal-backdrop playlist-picker-backdrop" (click)="closed.emit()">
-  <div
-    class="app-modal-surface playlist-picker"
-    appModalFocusTrap
-    tabindex="-1"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="playlist-picker-title"
-    (click)="$event.stopPropagation()"
-  >
-    <div class="app-modal-header playlist-picker-header">
-      <h2 id="playlist-picker-title">Add to playlist</h2>
-      <button
-        id="playlist-picker-close"
-        data-modal-initial-focus
-        type="button"
-        class="app-icon-button app-modal-close playlist-picker-close"
-        title="Close"
-        aria-label="Close"
-        (click)="closed.emit()"
-      >
-        <i class="fa fa-times" aria-hidden="true"></i>
-      </button>
-    </div>
-    <div class="playlist-picker-body">
+<app-modal-shell modalTitle="Add to playlist" titleId="playlist-picker-title" dialogId="playlist-picker"
+  closeButtonId="playlist-picker-close" closeLabel="Close add to playlist" size="compact" (closed)="closed.emit()">
+  <div class="playlist-picker-body">
       <div class="playlist-picker-song">
         <span class="playlist-picker-label">Song</span>
         <span class="playlist-picker-song-value">{{ song().songName }} by {{ song().songArtist }}</span>
@@ -69,12 +47,11 @@
         <button
           id="playlist-picker-manage"
           type="button"
-          class="app-button app-button--full playlist-picker-manage"
+          class="app-button app-button--full"
           (click)="managePlaylists()"
         >
           Manage playlists
         </button>
       }
-    </div>
   </div>
-</div>
+</app-modal-shell>

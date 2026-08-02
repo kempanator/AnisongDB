@@ -33,7 +33,7 @@ class SessionMediaStorage extends LocalMediaStorage {
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div id="audio-player" [title]="playerTitle()">
+    <div class="audio-player" [title]="playerTitle()">
       <media-player #player [storage]="storage">
         <media-provider></media-provider>
         <media-audio-layout [attr.color-scheme]="themeService.theme() === 'light' ? 'light' : 'dark'"></media-audio-layout>
@@ -41,10 +41,11 @@ class SessionMediaStorage extends LocalMediaStorage {
     </div>
   `,
   styles: [`
-    #audio-player {
+    .audio-player {
       position: fixed;
-      width: 100%;
+      right: 0;
       bottom: 0;
+      left: 0;
     }
   `],
 })

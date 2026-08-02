@@ -11,15 +11,15 @@
   padding: 16px;
 }
 
-section {
+.playlist-section {
   margin-bottom: 22px;
 }
 
-section:last-child {
+.playlist-section:last-child {
   margin-bottom: 0;
 }
 
-h3 {
+.playlist-section-title {
   margin: 0 0 10px;
   font-size: 16px;
 }
@@ -31,19 +31,18 @@ h3 {
 
 .playlist-create-row {
   display: flex;
-  gap: 8px;
   align-items: stretch;
+  gap: 8px;
 }
 
 .playlist-create-row input {
-  min-width: 0;
   flex: 1;
 }
 
 .playlist-auto-add-banner {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
   margin-bottom: 18px;
   padding: 10px 12px;
@@ -53,12 +52,12 @@ h3 {
 
 .playlist-list-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
 }
 
-.playlist-list-header h3 {
+.playlist-list-header .playlist-section-title {
   margin: 0;
 }
 
@@ -94,10 +93,10 @@ h3 {
 }
 
 .playlist-row-details {
-  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 3px;
+  min-width: 0;
 }
 
 .playlist-row-details strong {
@@ -111,8 +110,8 @@ h3 {
 
 .playlist-row-actions {
   position: relative;
-  flex: 0 0 auto;
   display: flex;
+  flex: 0 0 auto;
   gap: 6px;
 }
 
@@ -130,9 +129,6 @@ h3 {
 .playlist-actions-menu .app-button {
   justify-content: flex-start;
   border: 0;
-  background: var(--surface-2);
-  text-align: left;
-  font-weight: normal;
 }
 
 .playlist-actions-menu .app-button:focus-visible {
@@ -151,7 +147,7 @@ h3 {
 
 @media (max-width: 520px) {
   .playlist-row {
-    align-items: flex-start;
     flex-direction: column;
+    align-items: flex-start;
   }
 }

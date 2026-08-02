@@ -1,4 +1,5 @@
-<app-modal-shell modalTitle="Settings" titleId="settings-modal-title" dialogId="settings-modal" closeButtonId="settings-modal-close" closeLabel="Close settings" (closed)="closed.emit()">
+<app-modal-shell modalTitle="Settings" titleId="settings-modal-title" dialogId="settings-modal" closeButtonId="settings-modal-close"
+  closeLabel="Close settings" [fillHeight]="true" (closed)="closed.emit()">
   <div class="settings-tabs" role="tablist" aria-label="Settings sections" (keydown)="onTabKeydown($event)">
     @for (tab of settingsTabRegistry.tabs(); track tab.id) {
       <button [id]="'settings-tab-' + tab.id" type="button" class="app-tab" role="tab"
@@ -67,7 +68,7 @@
                 <span class="settings-radio-label">JP</span>
               </label>
             </div>
-            <label class="app-checkbox settings-inline-checkbox">
+            <label class="app-checkbox">
               <input type="checkbox" [checked]="preferences().showAnimeLanguageToggle"
                 (change)="userPreferencesService.updatePreferences({ showAnimeLanguageToggle: $any($event.target).checked })" />
               Show in header

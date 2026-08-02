@@ -1,76 +1,10 @@
-.song-modal-credit-grid {
-  display: grid;
-  gap: 8px;
-}
-
-.song-modal-credit-grid-item {
-  padding: 10px;
-  border: 1px solid var(--border);
-  background-color: var(--song-info-grid);
-}
-
-.song-modal-credit-subgrid {
-  display: grid;
-  gap: 4px;
-}
-
-.song-modal-credit-subgrid > div {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 6px;
-}
-
-.song-modal-backdrop {
-  z-index: 1000;
-  padding: 24px;
-  align-items: flex-start;
-}
-
-.song-modal-dialog {
-  font-family: "Arial", sans-serif;
-  background-color: var(--bg);
-  font-size: 16px;
-  margin: auto;
-  width: min(1120px, calc(100vw - 48px));
-  max-height: calc(100vh - 48px);
-  overflow-y: auto;
-  animation-name: animatetop;
-  animation-duration: 0.4s;
-}
-
-.song-modal-header {
-  position: relative;
-  align-items: flex-start;
-  gap: 20px;
-  padding: 18px 20px;
-}
-
 .song-modal-title-group {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  min-width: 0;
-}
-
-.song-modal-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 0 0 auto;
-}
-
-.song-modal-title-line {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
   min-width: 0;
 }
 
 .song-modal-row-number {
   flex: 0 0 auto;
   font-size: 15px;
-  font-weight: 700;
   color: var(--text-on-chrome);
   opacity: 0.7;
   white-space: nowrap;
@@ -79,14 +13,16 @@
 .song-modal-title {
   margin: 0;
   font-size: 22px;
-  overflow-wrap: anywhere;
-  line-height: 1.2;
 }
 
 .song-modal-artist {
   margin: 4px 0 0;
   font-size: 17px;
   opacity: 0.9;
+}
+
+.song-modal-title,
+.song-modal-artist {
   overflow-wrap: anywhere;
   line-height: 1.2;
 }
@@ -95,7 +31,10 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-height: 0;
   padding: 16px;
+  font-size: 15px;
+  overflow-y: auto;
 }
 
 .song-modal-overview {
@@ -105,9 +44,9 @@
 }
 
 .song-modal-panel {
+  padding: 14px;
   border: 1px solid var(--border);
   background: var(--song-info-panel);
-  padding: 14px;
 }
 
 .song-modal-panel-header {
@@ -119,7 +58,7 @@
 }
 
 .song-modal-panel h3 {
-  margin: 0 0 10px;
+  margin: 0;
   font-size: 15px;
   line-height: 1.2;
   text-transform: uppercase;
@@ -159,19 +98,23 @@
   margin: 0;
 }
 
-.song-modal-facts div {
+.song-modal-facts > div {
   min-width: 0;
 }
 
-.song-modal-facts dt {
-  margin: 0 0 2px;
+.song-modal-body dt,
+.song-modal-link-kind {
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   opacity: 0.7;
 }
 
-.song-modal-facts dd {
+.song-modal-body dt {
+  margin: 0 0 2px;
+}
+
+.song-modal-body dd {
   margin: 0;
   min-width: 0;
   overflow-wrap: anywhere;
@@ -182,10 +125,6 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-}
-
-.song-modal-fact-value .app-icon-button--inline {
-  margin-right: 0;
 }
 
 .song-modal-links-list {
@@ -210,11 +149,6 @@
 
 .song-modal-link-kind {
   grid-area: kind;
-  display: block;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  opacity: 0.7;
 }
 
 .song-modal-link-file {
@@ -230,69 +164,53 @@
   padding: 6px;
 }
 
-.song-modal-credit-primary {
+.song-modal-credit-grid,
+.song-modal-credit-subgrid {
+  display: grid;
+  grid-template-columns: var(--song-modal-grid-columns);
+}
+
+.song-modal-credit-grid {
+  gap: 8px;
+}
+
+.song-modal-credit-grid-item {
+  padding: 10px;
+  border: 1px solid var(--border);
+  background: var(--song-info-grid);
+}
+
+.song-modal-credit-subgrid {
+  gap: 4px;
+}
+
+.song-modal-credit-primary,
+.song-modal-credit-subgrid > div {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.song-modal-credit-primary {
   margin: 5px;
 }
 
-.song-modal-credit-primary .app-icon-button--inline,
-.song-modal-credit-subgrid > div .app-icon-button--inline {
-  margin-right: 0;
+.song-modal-credit-subgrid > div {
+  padding: 4px 6px;
 }
 
 .song-modal-credit-subheading {
   margin: 20px 3px 3px;
-  font-size: 15px;
   opacity: 0.7;
   text-decoration: underline;
 }
 
-@keyframes animatetop {
-  from {
-    top: -300px;
-    opacity: 0;
-  }
-
-  to {
-    top: 0;
-    opacity: 1;
-  }
-}
-
 @media (max-width: 860px) {
-  .song-modal-backdrop {
-    padding: 12px;
-  }
-
-  .song-modal-dialog {
-    width: calc(100vw - 24px);
-    max-height: calc(100vh - 24px);
-  }
-
-  .song-modal-header {
-    flex-direction: column;
-    padding-right: 64px;
-  }
-
-  .song-modal-header-actions {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-  }
-
   .song-modal-overview,
-  .song-modal-links-list {
-    grid-template-columns: 1fr;
-  }
-
-  .song-modal-facts {
-    grid-template-columns: 1fr;
-  }
-
+  .song-modal-links-list,
+  .song-modal-facts,
   .song-modal-credit-grid,
   .song-modal-credit-subgrid {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 1fr;
   }
 }

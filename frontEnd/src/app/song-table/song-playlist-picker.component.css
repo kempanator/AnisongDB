@@ -1,28 +1,8 @@
-.playlist-picker-backdrop {
-  z-index: 310;
-}
-
-.playlist-picker {
-  width: min(360px, 100%);
-}
-
-.playlist-picker-header {
-  padding: 12px 14px;
-}
-
-.playlist-picker-header h2 {
-  margin: 0;
-  font-size: 17px;
-}
-
-.playlist-picker-close {
-  font-size: 22px;
-}
-
 .playlist-picker-body {
   display: grid;
   gap: 8px;
   padding: 14px;
+  font-size: 15px;
 }
 
 .playlist-picker-song {
@@ -38,7 +18,7 @@
 
 .playlist-picker-controls {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
 }
 
@@ -50,17 +30,13 @@
   grid-column: 1 / -1;
 }
 
-.playlist-picker-add,
-.playlist-picker-manage {
+.playlist-picker-add {
   justify-content: space-between;
   gap: 10px;
-  height: 32px;
-  padding: 0 10px;
 }
 
 .playlist-picker-select {
   width: 100%;
-  height: 32px;
 }
 
 .playlist-picker-auto-add {

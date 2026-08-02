@@ -1,28 +1,23 @@
 :host {
-    display: block;
-    min-height: 100vh;
-    box-sizing: border-box;
-    color: var(--text);
-    font-size: 14px;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+  display: block;
+  color: var(--text);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .app-shell {
-    min-height: 100vh;
+  min-height: 100vh;
 }
 
 .content {
-    width: 100%;
-    max-width: 100%;
-    box-sizing: border-box;
-    padding: 70px 8px 0;
+  box-sizing: border-box;
+  padding: 70px 8px 0;
 }
 
 .amq-disclaimer {
-    margin: 65px 0;
-    padding: 0;
-    color: var(--text-muted);
-    font-size: 14px;
-    text-align: center;
+  margin: 65px 0;
+  color: var(--text-muted);
+  font-size: 14px;
+  text-align: center;
 }

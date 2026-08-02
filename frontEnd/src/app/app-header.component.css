@@ -16,7 +16,7 @@
   font-weight: 600;
 }
 
-.spacer {
+.toolbar-spacer {
   flex: 1;
 }
 
@@ -36,7 +36,6 @@
 
 .toolbar-logo {
   width: 40px;
-  height: auto;
 }
 
 .toolbar-anime-name-label {
@@ -63,10 +62,10 @@
   --lang-toggle-inset: 1px;
   position: relative;
   display: inline-block;
+  flex-shrink: 0;
   width: 110px;
   height: 32px;
   cursor: pointer;
-  flex-shrink: 0;
   user-select: none;
 }
 
@@ -83,7 +82,6 @@
   position: relative;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  align-items: stretch;
   width: 100%;
   height: 100%;
   box-sizing: border-box;
@@ -117,16 +115,16 @@
   transition: color 0.2s ease-out;
 }
 
-.lang-toggle input:checked~.lang-toggle-track::before {
+.lang-toggle input:checked ~ .lang-toggle-track::before {
   transform: translateX(100%);
 }
 
-.lang-toggle input:not(:checked)~.lang-toggle-track .lang-toggle-option:first-child,
-.lang-toggle input:checked~.lang-toggle-track .lang-toggle-option:last-child {
+.lang-toggle input:not(:checked) ~ .lang-toggle-track .lang-toggle-option:first-child,
+.lang-toggle input:checked ~ .lang-toggle-track .lang-toggle-option:last-child {
   color: var(--text-on-chrome);
 }
 
-.lang-toggle input:focus-visible~.lang-toggle-track {
+.lang-toggle input:focus-visible ~ .lang-toggle-track {
   outline: 2px solid var(--text-on-chrome);
   outline-offset: 2px;
 }
@@ -153,5 +151,12 @@
   .toolbar-icon-button {
     margin-right: 15px;
     font-size: 24px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lang-toggle-track::before,
+  .lang-toggle-option {
+    transition: none;
   }
 }

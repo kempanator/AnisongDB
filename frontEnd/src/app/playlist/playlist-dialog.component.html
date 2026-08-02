@@ -1,5 +1,5 @@
-<app-modal-shell modalTitle="Playlists" titleId="playlist-modal-title" dialogId="playlist-modal" closeButtonId="playlist-modal-close" closeLabel="Close playlists"
-  (closed)="closed.emit()" (surfaceClicked)="closeActions()">
+<app-modal-shell modalTitle="Playlists" titleId="playlist-modal-title" dialogId="playlist-modal" closeButtonId="playlist-modal-close"
+  closeLabel="Close playlists" (closed)="closed.emit()">
   <div class="playlist-modal-panel" (scroll)="closeActions()">
     <div class="playlist-modal-body">
       @if (playlistService.autoAddPlaylist(); as playlist) {
@@ -9,8 +9,8 @@
         </div>
       }
 
-      <section>
-        <h3>New playlist</h3>
+      <section class="playlist-section">
+        <h3 class="playlist-section-title">New playlist</h3>
         <p class="playlist-help-text">All songs currently in the table will be added to this playlist, up to 500 songs. They are stored as ANN Song Ids in the browser's local storage. Add individual songs from the "Add" column in the song table.</p>
         <div class="playlist-create-row">
           <input id="playlist-create-name" #newPlaylistName type="text" class="app-input" maxlength="100" placeholder="Playlist name"
@@ -19,16 +19,16 @@
         </div>
       </section>
 
-      <section>
-        <h3>Import</h3>
+      <section class="playlist-section">
+        <h3 class="playlist-section-title">Import</h3>
         <p class="playlist-help-text">Load songs from a JSON file into the table. Any file with ANN Song IDs works.</p>
         <input #playlistImportInput type="file" accept="application/json,.json" hidden (change)="onImport($event)" />
-        <button id="playlist-import" type="button" class="app-button playlist-import" (click)="playlistImportInput.click()"><i class="fa fa-upload" aria-hidden="true"></i> Import</button>
+        <button id="playlist-import" type="button" class="app-button" (click)="playlistImportInput.click()"><i class="fa fa-upload" aria-hidden="true"></i> Import</button>
       </section>
 
-      <section>
+      <section class="playlist-section">
         <div class="playlist-list-header">
-          <h3>Saved playlists</h3>
+          <h3 class="playlist-section-title">Saved playlists</h3>
           <label class="playlist-sort-control" for="playlist-sort-select">
             <span>Sort</span>
             <select id="playlist-sort-select" class="app-select" aria-label="Sort saved playlists" (change)="setSort($event)">

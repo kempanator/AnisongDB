@@ -4,7 +4,6 @@
 
 .settings-tabs {
   display: flex;
-  flex-wrap: nowrap;
   gap: 4px;
   border-bottom: 1px solid var(--border);
   background: var(--surface-2);
@@ -12,7 +11,6 @@
 
 .settings-tabs .app-tab {
   flex: 0 0 120px;
-  width: 120px;
   min-height: 36px;
   padding: 0 12px;
   border-bottom: 3px solid transparent;
@@ -48,13 +46,6 @@
   padding: 0 0 16px;
 }
 
-.settings-section h3 {
-  margin: 0 0 8px;
-  color: var(--text);
-  font-size: 15px;
-  line-height: 1.2;
-}
-
 .settings-radio-list {
   display: flex;
   flex-direction: column;
@@ -63,8 +54,7 @@
 }
 
 .settings-inline-radio-list {
-  flex-direction: row;
-  flex-wrap: wrap;
+  flex-flow: row wrap;
   gap: 8px 20px;
 }
 
@@ -86,7 +76,6 @@
 }
 
 .settings-radio-label {
-  display: block;
   min-width: 0;
   font-size: 13px;
   font-weight: 600;
@@ -98,10 +87,6 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 20px;
-}
-
-.settings-inline-checkbox {
-  white-space: nowrap;
 }
 
 .settings-info-text {
@@ -147,6 +132,7 @@
   text-transform: uppercase;
 }
 
+.settings-section h3,
 .settings-info-creator h3,
 .settings-info-section h3 {
   margin: 0 0 8px;

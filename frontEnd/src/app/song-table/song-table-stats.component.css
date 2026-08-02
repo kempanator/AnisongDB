@@ -3,7 +3,6 @@
   align-items: center;
   gap: 6px;
   font-size: 14px;
-  color: var(--text);
 }
 
 .table-stats-toggle {
@@ -32,9 +31,10 @@
   top: calc(100% + 6px);
   left: 0;
   z-index: 20;
-  min-width: 280px;
   width: min(360px, calc(100vw - 24px));
+  min-width: min(280px, calc(100vw - 24px));
   max-height: min(70vh, 540px);
+  max-height: min(70dvh, 540px);
   overflow-y: auto;
   padding: 12px 14px 14px;
   font-size: 12px;
@@ -43,18 +43,17 @@
 }
 
 .table-stats-header {
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
   margin-bottom: 10px;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 .table-stats-overview {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0;
   margin: 0 0 5px;
   padding: 2px 0 10px;
   border-bottom: 1px solid var(--border);
@@ -64,7 +63,6 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 2px;
-  margin-bottom: 0;
   border-bottom: 1px solid var(--border);
 }
 
@@ -108,22 +106,6 @@
   overflow-wrap: anywhere;
 }
 
-@media (max-width: 320px) {
-  .table-stats-overview {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px 0;
-  }
-
-  .table-stats-tile:nth-child(3) {
-    padding-left: 0;
-    border-left: 0;
-  }
-
-  .table-stats-tile:nth-child(2) {
-    padding-right: 0;
-  }
-}
-
 .table-stats-section + .table-stats-section {
   margin-top: 6px;
   padding-top: 6px;
@@ -160,6 +142,10 @@
 
 .table-stats-row-label {
   font-weight: 600;
+}
+
+.table-stats-row-label,
+.table-stats-ranking-label {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -186,16 +172,11 @@
 }
 
 .table-stats-ranking-label {
-  min-width: 0;
   flex: 1 1 auto;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .table-stats-ranking-search {
   flex: 0 0 auto;
-  margin-right: 0;
 }
 
 .table-stats-empty {
@@ -216,5 +197,21 @@
   height: 100%;
   min-width: 2px;
   border-radius: inherit;
-  background-color: var(--accent);
+  background: var(--accent);
+}
+
+@media (max-width: 320px) {
+  .table-stats-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 0;
+  }
+
+  .table-stats-tile:nth-child(2) {
+    padding-right: 0;
+  }
+
+  .table-stats-tile:nth-child(3) {
+    padding-left: 0;
+    border-left: 0;
+  }
 }

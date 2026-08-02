@@ -1,4 +1,4 @@
-<div class="app-shell" [attr.inert]="activeModal() ? '' : null" [attr.aria-hidden]="activeModal() ? 'true' : null">
+<div class="app-shell">
   <app-header
     (playlistsRequested)="openModal('playlists')"
     (settingsRequested)="openModal('settings')"
@@ -28,10 +28,10 @@
   </main>
 </div>
 
-@if (activeModal() === 'settings') {
-  <app-settings-dialog (closed)="closeModal()" />
-} @else if (activeModal() === 'playlists') {
-  <app-playlist-dialog (closed)="closeModal()" />
+@if (activeModal()?.type === 'settings') {
+  <app-settings-dialog (closed)="closeModal('settings')" />
+} @else if (activeModal()?.type === 'playlists') {
+  <app-playlist-dialog (closed)="closeModal('playlists')" />
 }
 
 <app-toast-outlet />

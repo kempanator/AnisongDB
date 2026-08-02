@@ -15,6 +15,7 @@ import {
 import { DistServerService } from '../core/services/dist-server.service';
 import { RankedStatusService } from '../core/services/ranked-status.service';
 import { SongSearchController } from '../core/services/song-search-controller.service';
+import { ModalService } from '../core/services/modal.service';
 import { AnimeTitleLanguage } from '../core/services/user-preferences.service';
 import { SongTableStatsComponent } from './song-table-stats.component';
 import { SongInfoModalComponent } from './song-info-modal.component';
@@ -49,7 +50,7 @@ import { SongPlaylistPickerComponent } from './song-playlist-picker.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     '(document:click)': 'onAnyClick($event)',
-    '(document:keydown)': 'onDocumentKeydown($event)',
+    '(document:keydown.escape)': 'closeOpenTablePopover()',
   },
   imports: [SongTableStatsComponent, SongInfoModalComponent, SongPlaylistPickerComponent],
 })
@@ -57,6 +58,7 @@ export class SongTableComponent implements OnDestroy {
   private readonly songSearchController = inject(SongSearchController);
   private readonly rankedStatusService = inject(RankedStatusService);
   private readonly distServerService = inject(DistServerService);
+  readonly modalService = inject(ModalService);
   readonly playlistService = inject(PlaylistService);
   private readonly tableSettings = inject(SongTableSettingsService);
 
@@ -78,7 +80,10 @@ export class SongTableComponent implements OnDestroy {
   readonly availableColumns = this.tableSettings.availableColumns;
   readonly showColumnSettings = signal(false);
   readonly showTableStats = signal(false);
-  readonly songToAddToPlaylist = signal<SongRow | null>(null);
+  readonly songToAddToPlaylist = computed(() => {
+    const modal = this.modalService.active();
+    return modal?.type === 'playlist-picker' ? modal.song : null;
+  });
   readonly selectedPlaylistId = this.playlistService.selectedPlaylistId;
   readonly autoAddToPlaylist = this.playlistService.autoAddEnabled;
   readonly sortedPlaylists = this.playlistService.sortedPlaylists;
@@ -94,15 +99,14 @@ export class SongTableComponent implements OnDestroy {
 
   readonly sortColumn = signal<SongColumnId | null>(null);
   readonly sortAscending = signal(false);
-  readonly selectedSong = signal<SongRow | null>(null);
-  readonly activeSongIndex = computed(() => {
-    const song = this.selectedSong();
-    const table = this.songTable();
-    return song && table ? table.indexOf(song) : -1;
-  });
   readonly activeSong = computed(() => {
-    const index = this.activeSongIndex();
-    return index >= 0 ? (this.songTable()?.[index] ?? null) : null;
+    const modal = this.modalService.active();
+    if (modal?.type !== 'song-info') return null;
+    return this.songTable()?.includes(modal.song) ? modal.song : null;
+  });
+  readonly activeSongIndex = computed(() => {
+    const song = this.activeSong();
+    return song ? (this.songTable()?.indexOf(song) ?? -1) : -1;
   });
   private readonly draggedSong = signal<SongRow | null>(null);
   private readonly dragOverSong = signal<SongRow | null>(null);
@@ -132,7 +136,7 @@ export class SongTableComponent implements OnDestroy {
       if (result === 'added' || result === 'removed' || result === 'full') return;
     }
 
-    this.songToAddToPlaylist.set(song);
+    this.modalService.open({ type: 'playlist-picker', song });
   }
 
   isAlreadyInAutoAddPlaylist(song: SongRow): boolean {
@@ -140,7 +144,7 @@ export class SongTableComponent implements OnDestroy {
   }
 
   closePlaylistPicker(): void {
-    this.songToAddToPlaylist.set(null);
+    this.modalService.close('playlist-picker');
   }
 
   constructor() {
@@ -148,6 +152,14 @@ export class SongTableComponent implements OnDestroy {
 
     effect(() => {
       if (this.showTableStats()) {
+        this.showColumnSettings.set(false);
+      }
+    });
+
+    effect(() => {
+      const activeModal = this.modalService.active();
+      if (activeModal) {
+        this.showTableStats.set(false);
         this.showColumnSettings.set(false);
       }
     });
@@ -248,7 +260,7 @@ export class SongTableComponent implements OnDestroy {
   }
 
   closeSongInfoPopup() {
-    this.selectedSong.set(null);
+    this.modalService.close('song-info');
   }
 
   private clearClipboardPopupSchedule(): void {
@@ -301,12 +313,8 @@ export class SongTableComponent implements OnDestroy {
     }
   }
 
-  onDocumentKeydown(event: KeyboardEvent) {
-    if (event.key !== 'Escape') return;
-
-    if (this.songToAddToPlaylist()) {
-      this.closePlaylistPicker();
-    } else if (this.showTableStats()) {
+  closeOpenTablePopover() {
+    if (this.showTableStats()) {
       this.showTableStats.set(false);
     } else if (this.showColumnSettings()) {
       this.showColumnSettings.set(false);
@@ -320,7 +328,8 @@ export class SongTableComponent implements OnDestroy {
       return;
     }
 
-    this.selectedSong.set(table[(index + delta + table.length) % table.length]);
+    const song = table[(index + delta + table.length) % table.length];
+    this.modalService.open({ type: 'song-info', song });
   }
 
   getColumnDisplayValue(song: SongRow, columnId: SongColumnId) {
@@ -332,12 +341,13 @@ export class SongTableComponent implements OnDestroy {
   }
 
   displaySongInfoPopup(song: SongRow) {
-    if (this.selectedSong() === song) {
+    const activeModal = this.modalService.active();
+    if (activeModal?.type === 'song-info' && activeModal.song === song) {
       this.closeSongInfoPopup();
       return;
     }
 
-    this.selectedSong.set(song);
+    this.modalService.open({ type: 'song-info', song });
   }
 
   deleteRowEntry(song: SongRow) {
@@ -345,7 +355,7 @@ export class SongTableComponent implements OnDestroy {
     if (!table) return;
     const nextTable = removeSongFromTable(table, song);
     if (!nextTable) return;
-    if (this.selectedSong() === song) {
+    if (this.activeSong() === song) {
       this.closeSongInfoPopup();
     }
     this.songTableChange.emit(nextTable);

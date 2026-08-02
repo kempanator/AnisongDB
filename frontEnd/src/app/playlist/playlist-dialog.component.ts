@@ -7,6 +7,7 @@ import {
   Injector,
   output,
   signal,
+  viewChild,
 } from '@angular/core';
 import { formatSongCount } from '../core/models/song';
 import { NotificationService } from '../core/services/notification.service';
@@ -24,6 +25,7 @@ import type { Playlist } from './playlist.types';
   styleUrls: ['./playlist-dialog.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
+    '(document:click)': 'closeActions()',
     '(window:resize)': 'closeActions()',
   },
 })
@@ -44,6 +46,7 @@ export class PlaylistDialogComponent {
   private readonly songs = inject(SongSearchController);
   private readonly notifications = inject(NotificationService);
   private readonly injector = inject(Injector);
+  private readonly modal = viewChild.required(ModalShellComponent);
   private actionsMenuTrigger: HTMLElement | null = null;
 
   createPlaylist(input: HTMLInputElement): void {
@@ -61,7 +64,7 @@ export class PlaylistDialogComponent {
 
   loadPlaylist(playlist: Playlist): void {
     this.songs.loadPlaylist(playlist.annSongIds, 'saved');
-    this.closed.emit();
+    this.modal().close();
   }
 
   toggleActions(playlistId: string, event: MouseEvent): void {
@@ -260,7 +263,7 @@ export class PlaylistDialogComponent {
         return;
       }
       this.songs.loadPlaylist(ids, 'import');
-      this.closed.emit();
+      this.modal().close();
     } catch (_error) {
       this.notifications.show('Could not read that JSON file.');
     }

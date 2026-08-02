@@ -4,10 +4,10 @@
     [rowIndex]="activeSongIndex()"
     [totalRows]="songTable()?.length ?? 0"
     [showAmqSongId]="showAmqSongId()"
+    [clipboardPopup]="clipboardPopup()"
     (closed)="closeSongInfoPopup()"
     (copyText)="onModalCopy($event)"
     (navigate)="navigateSongInfoPopup($event)"
-    (searchStarted)="closeSongInfoPopup()"
   />
 }
 
@@ -71,7 +71,7 @@
 
 @if (songTable()) {
   <div class="table-scroll">
-    <table id="table">
+    <table id="table" class="song-table">
       <thead>
         <tr>
           @for (column of tableHeaders(); track column.id) {
@@ -265,13 +265,13 @@
                     @for (link of songDistLinks; track link.field) {
                       @if (shouldShowSongLink(song, link)) {
                         <a
-                          class="table-song-link"
                           [href]="getDistLink(song[link.field])"
                           target="_blank"
                           rel="noopener noreferrer"
                           [title]="link.title"
-                          >{{ link.label }}</a
                         >
+                          {{ link.label }}
+                        </a>
                       }
                     }
                   </div>
@@ -343,10 +343,12 @@
   </div>
 }
 
-@if (clipboardPopup(); as popup) {
-  <div class="table-clipboard-popup" [style.left]="popup.left" [style.top]="popup.top">
-    Copied
-  </div>
+@if (modalService.active()?.type !== 'song-info') {
+  @if (clipboardPopup(); as popup) {
+    <div class="app-clipboard-popup" [style.left]="popup.left" [style.top]="popup.top">
+      Copied
+    </div>
+  }
 }
 
 @if (songToAddToPlaylist(); as song) {

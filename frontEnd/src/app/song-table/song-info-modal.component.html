@@ -1,62 +1,29 @@
 @if (info(); as info) {
-  <div
-    id="song-info-modal"
-    class="app-modal-backdrop song-modal-backdrop"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="song-modal-song-name"
-    (click)="closed.emit()"
-  >
-    <div
-      #modalContent
-      class="app-modal-surface song-modal-dialog"
-      appModalFocusTrap
-      tabindex="-1"
-      (click)="$event.stopPropagation()"
-      (keydown)="onKeydown($event)"
-    >
-      <div class="app-modal-header song-modal-header">
-        <div class="song-modal-title-group">
-          <div>
-            <div class="song-modal-title-line">
-              <h2
-                id="song-modal-song-name"
-                class="app-copyable song-modal-title"
-                title="Copy to clipboard"
-                (click)="onCopy($event, info.songName)"
-              >
-                {{ info.songName }}
-              </h2>
-            </div>
-            <p
-              id="song-modal-artist"
-              class="app-copyable song-modal-artist"
-              title="Copy to clipboard"
-              (click)="onCopy($event, info.artist)"
-            >
-              by {{ info.artist || 'Unknown Artist' }}
-            </p>
-          </div>
-        </div>
-        <div class="song-modal-header-actions">
-          <span id="song-modal-row-number" class="song-modal-row-number">
-            {{ rowIndex() + 1 }} / {{ totalRows() }}
-          </span>
-          <button
-            id="song-modal-close"
-            data-modal-initial-focus
-            type="button"
-            class="app-icon-button app-modal-close song-modal-close"
-            title="Close"
-            aria-label="Close song info"
-            (click)="onCloseClick($event)"
-          >
-            <i class="fa fa-times" aria-hidden="true"></i>
-          </button>
-        </div>
-      </div>
+  <app-modal-shell titleId="song-modal-song-name" dialogId="song-info-modal" closeButtonId="song-modal-close"
+    closeLabel="Close song info" size="wide" (closed)="closed.emit()">
+    <div modal-title class="song-modal-title-group">
+      <h2
+        id="song-modal-song-name"
+        class="app-copyable song-modal-title"
+        title="Copy to clipboard"
+        (click)="onCopy($event, info.songName)"
+      >
+        {{ info.songName }}
+      </h2>
+      <p
+        id="song-modal-artist"
+        class="app-copyable song-modal-artist"
+        title="Copy to clipboard"
+        (click)="onCopy($event, info.artist)"
+      >
+        by {{ info.artist || 'Unknown Artist' }}
+      </p>
+    </div>
+    <span modal-header-actions id="song-modal-row-number" class="song-modal-row-number">
+      {{ rowIndex() + 1 }} / {{ totalRows() }}
+    </span>
 
-      <div class="song-modal-body">
+      <div #modalContent class="song-modal-body">
         <div class="song-modal-overview">
           <section class="song-modal-panel">
             <div class="song-modal-panel-header">
@@ -346,7 +313,7 @@
           <section class="song-modal-panel">
             @for (section of info.creditSections; track section.title) {
               <h3>{{ section.title }}</h3>
-              <div class="song-modal-credit-grid" [style.grid-template-columns]="gridColumns(section.people.length)">
+              <div class="song-modal-credit-grid" [style.--song-modal-grid-columns]="gridColumns(section.people.length)">
                 @for (person of section.people; track $index) {
                   <div class="song-modal-credit-grid-item">
                     <p class="song-modal-credit-primary">
@@ -372,7 +339,7 @@
 
                     @if (person.names.length > 1) {
                       <p class="song-modal-credit-subheading"><b>Known as:</b></p>
-                      <div class="song-modal-credit-subgrid" [style.grid-template-columns]="creditSubgridColumns(section.people.length)">
+                      <div class="song-modal-credit-subgrid" [style.--song-modal-grid-columns]="creditSubgridColumns(section.people.length)">
                         @for (name of person.names.slice(1); track name) {
                           <div>
                             <span
@@ -389,7 +356,7 @@
 
                     @if (person.members?.length) {
                       <p class="song-modal-credit-subheading"><b>Comprised of:</b></p>
-                      <div class="song-modal-credit-subgrid" [style.grid-template-columns]="creditSubgridColumns(section.people.length)">
+                      <div class="song-modal-credit-subgrid" [style.--song-modal-grid-columns]="creditSubgridColumns(section.people.length)">
                         @for (member of person.members; track $index) {
                           <div>
                             @if (!rankedActive()) {
@@ -417,7 +384,7 @@
 
                     @if (person.groups?.length) {
                       <p class="song-modal-credit-subheading"><b>Part of:</b></p>
-                      <div class="song-modal-credit-subgrid" [style.grid-template-columns]="creditSubgridColumns(section.people.length)">
+                      <div class="song-modal-credit-subgrid" [style.--song-modal-grid-columns]="creditSubgridColumns(section.people.length)">
                         @for (group of person.groups; track $index) {
                           <div>
                             @if (!rankedActive()) {
@@ -449,6 +416,10 @@
           </section>
         }
       </div>
-    </div>
-  </div>
+      @if (clipboardPopup(); as popup) {
+        <div class="app-clipboard-popup" [style.left]="popup.left" [style.top]="popup.top">
+          Copied
+        </div>
+      }
+  </app-modal-shell>
 }

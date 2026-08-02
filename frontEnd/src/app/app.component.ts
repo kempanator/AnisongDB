@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject } from '@angular/core';
 import { AppHeaderComponent } from './app-header.component';
 import { AudioPlayerComponent } from './audio-player.component';
 import { AudioPlaybackService } from './core/services/audio-playback.service';
+import { ModalService } from './core/services/modal.service';
 import { NotificationService } from './core/services/notification.service';
 import { formatSongCount, SongRow } from './core/models/song';
 import { SongSearchController } from './core/services/song-search-controller.service';
@@ -12,14 +13,11 @@ import { SettingsDialogComponent } from './settings/settings-dialog.component';
 import { ToastOutletComponent } from './shared/toast-outlet.component';
 import { SongTableComponent } from './song-table/song-table.component';
 
-type AppModal = 'settings' | 'playlists' | null;
-
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { '(document:keydown)': 'onDocumentKeydown($event)' },
   imports: [
     AppHeaderComponent,
     AudioPlayerComponent,
@@ -33,7 +31,8 @@ type AppModal = 'settings' | 'playlists' | null;
 export class AppComponent {
   readonly songSearchController = inject(SongSearchController);
   readonly audioPlayback = inject(AudioPlaybackService);
-  readonly activeModal = signal<AppModal>(null);
+  readonly modalService = inject(ModalService);
+  readonly activeModal = this.modalService.active;
   private readonly preferencesService = inject(UserPreferencesService);
   private readonly notifications = inject(NotificationService);
 
@@ -53,19 +52,12 @@ export class AppComponent {
     });
   }
 
-  openModal(modal: Exclude<AppModal, null>): void {
-    this.activeModal.set(modal);
+  openModal(type: 'settings' | 'playlists'): void {
+    this.modalService.open({ type });
   }
 
-  closeModal(): void {
-    this.activeModal.set(null);
-  }
-
-  onDocumentKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Escape' && this.activeModal()) {
-      event.preventDefault();
-      this.closeModal();
-    }
+  closeModal(type: 'settings' | 'playlists'): void {
+    this.modalService.close(type);
   }
 
   updateSongList(songs: SongRow[]): void {
