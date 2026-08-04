@@ -1,12 +1,10 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject } from '@angular/core';
 import { AppHeaderComponent } from './app-header.component';
 import { AudioPlayerComponent } from './audio-player.component';
-import { AudioPlaybackService } from './core/services/audio-playback.service';
 import { ModalService } from './core/services/modal.service';
 import { NotificationService } from './core/services/notification.service';
-import { formatSongCount, SongRow } from './core/models/song';
+import { formatSongCount } from './core/models/song';
 import { SongSearchController } from './core/services/song-search-controller.service';
-import { UserPreferencesService } from './core/services/user-preferences.service';
 import { PlaylistDialogComponent } from './playlist/playlist-dialog.component';
 import { SearchBarComponent } from './search-bar/search-bar.component';
 import { SettingsDialogComponent } from './settings/settings-dialog.component';
@@ -29,15 +27,10 @@ import { SongTableComponent } from './song-table/song-table.component';
   ],
 })
 export class AppComponent {
-  readonly songSearchController = inject(SongSearchController);
-  readonly audioPlayback = inject(AudioPlaybackService);
+  private readonly songSearchController = inject(SongSearchController);
   readonly modalService = inject(ModalService);
   readonly activeModal = this.modalService.active;
-  private readonly preferencesService = inject(UserPreferencesService);
   private readonly notifications = inject(NotificationService);
-
-  readonly preferences = this.preferencesService.preferences;
-  readonly animeTitleLang = computed(() => this.preferences().animeTitleLanguage);
 
   constructor() {
     effect(() => {
@@ -60,11 +53,4 @@ export class AppComponent {
     this.modalService.close(type);
   }
 
-  updateSongList(songs: SongRow[]): void {
-    this.songSearchController.replaceSongList(songs);
-  }
-
-  showNotification(message: string): void {
-    this.notifications.show(message);
-  }
 }

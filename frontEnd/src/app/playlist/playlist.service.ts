@@ -1,18 +1,9 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { UserPreferencesService } from '../core/services/user-preferences.service';
 import { downloadJsonFile } from '../shared/download-json-file';
-import {
-  DEFAULT_PLAYLIST_SORT,
-  parsePlaylistSort,
-  sortPlaylists,
-} from './playlist-sort';
+import { DEFAULT_PLAYLIST_SORT, parsePlaylistSort, sortPlaylists } from './playlist-sort';
 import type { PlaylistSort } from './playlist-sort';
-import type {
-  Playlist,
-  PlaylistAddResult,
-  PlaylistAppendResult,
-  PlaylistToggleResult,
-} from './playlist.types';
+import type { Playlist, PlaylistAddResult, PlaylistAppendResult, PlaylistToggleResult } from './playlist.types';
 
 export const PLAYLIST_MAX_SONGS = 500;
 

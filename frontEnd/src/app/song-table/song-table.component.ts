@@ -1,47 +1,19 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  ElementRef,
-  effect,
-  inject,
-  input,
-  OnDestroy,
-  output,
-  signal,
-  untracked,
-  viewChild,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, ElementRef, effect, inject, OnDestroy, signal, viewChild } from '@angular/core';
+import { AudioPlaybackService } from '../core/services/audio-playback.service';
 import { DistServerService } from '../core/services/dist-server.service';
 import { RankedStatusService } from '../core/services/ranked-status.service';
 import { SongSearchController } from '../core/services/song-search-controller.service';
 import { ModalService } from '../core/services/modal.service';
-import { AnimeTitleLanguage } from '../core/services/user-preferences.service';
+import { NotificationService } from '../core/services/notification.service';
+import { UserPreferencesService } from '../core/services/user-preferences.service';
 import { SongTableStatsComponent } from './song-table-stats.component';
 import { SongInfoModalComponent } from './song-info-modal.component';
-import { collectPersonIds, computeTableStats } from './song-table.utils';
-import { SongRow } from './song-table.types';
-import { hasAnnSongId, hasSongPlaybackSource, SongCredit } from '../core/models/song';
-import {
-  PLAYLIST_TOGGLE_MESSAGES,
-  PlaylistService,
-} from '../playlist/playlist.service';
-import { SongTableSettingsService } from './song-table-settings.service';
-import {
-  ANIME_LIST_SITES,
-  getColumnCopyValue,
-  getColumnDisplayValue,
-  SONG_DIST_LINKS,
-  SongColumnId,
-  SongDistLink,
-} from './song-table-columns';
-import {
-  moveSongInTable,
-  removeSongFromTable,
-  shuffleSongTable,
-  sortSongTable,
-} from './song-table-ordering';
+import { collectPersonIds } from './song-table.utils';
+import { hasAnnSongId, hasSongPlaybackSource, SongCredit, SongRow } from '../core/models/song';
+import { PLAYLIST_TOGGLE_MESSAGES, PlaylistService } from '../playlist/playlist.service';
+import { ANIME_LIST_SITES, getColumnCopyValue, getColumnDisplayValue, SONG_DIST_LINKS, SongColumnId, SongDistLink } from './song-table-columns';
 import { SongPlaylistPickerComponent } from './song-playlist-picker.component';
+import { SongTableController } from './song-table.controller';
 
 @Component({
   selector: 'app-song-table',
@@ -56,38 +28,36 @@ import { SongPlaylistPickerComponent } from './song-playlist-picker.component';
 })
 export class SongTableComponent implements OnDestroy {
   private readonly songSearchController = inject(SongSearchController);
+  private readonly table = inject(SongTableController);
+  private readonly audioPlayback = inject(AudioPlaybackService);
+  private readonly notifications = inject(NotificationService);
+  private readonly preferences = inject(UserPreferencesService);
   private readonly rankedStatusService = inject(RankedStatusService);
   private readonly distServerService = inject(DistServerService);
   readonly modalService = inject(ModalService);
-  readonly playlistService = inject(PlaylistService);
-  private readonly tableSettings = inject(SongTableSettingsService);
+  private readonly playlistService = inject(PlaylistService);
 
   readonly searchErrorMessage = this.songSearchController.searchError;
   readonly rankedActive = this.rankedStatusService.active;
 
-  readonly songTable = input<SongRow[] | null | undefined>();
-  readonly animeTitleLang = input<AnimeTitleLanguage>('JP');
-  readonly showAmqSongId = input(false);
-  readonly currentAudioSong = input<SongRow | null>(null);
-  readonly searchRevision = input(0);
-  readonly resultOrder = input<'default' | 'playlist'>('default');
-  readonly playAudioRequested = output<SongRow>();
-  readonly songTableChange = output<SongRow[]>();
-  readonly managePlaylistsRequested = output<void>();
-  readonly notificationRequested = output<string>();
+  readonly songTable = this.table.songs;
+  readonly animeTitleLang = computed(
+    () => this.preferences.preferences().animeTitleLanguage,
+  );
+  readonly currentAudioSong = this.audioPlayback.currentSong;
 
-  readonly tableHeaders = this.tableSettings.visibleColumns;
-  readonly availableColumns = this.tableSettings.availableColumns;
+  readonly tableHeaders = this.table.visibleColumns;
+  readonly availableColumns = this.table.availableColumns;
   readonly showColumnSettings = signal(false);
   readonly showTableStats = signal(false);
   readonly songToAddToPlaylist = computed(() => {
     const modal = this.modalService.active();
     return modal?.type === 'playlist-picker' ? modal.song : null;
   });
-  readonly selectedPlaylistId = this.playlistService.selectedPlaylistId;
-  readonly autoAddToPlaylist = this.playlistService.autoAddEnabled;
-  readonly sortedPlaylists = this.playlistService.sortedPlaylists;
-  readonly selectedPlaylist = this.playlistService.selectedPlaylist;
+  private readonly selectedPlaylistId = this.playlistService.selectedPlaylistId;
+  private readonly autoAddToPlaylist = this.playlistService.autoAddEnabled;
+  private readonly sortedPlaylists = this.playlistService.sortedPlaylists;
+  private readonly selectedPlaylist = this.playlistService.selectedPlaylist;
   private readonly autoAddSongIds = computed(
     () => new Set(this.playlistService.autoAddPlaylist()?.annSongIds ?? []),
   );
@@ -97,22 +67,16 @@ export class SongTableComponent implements OnDestroy {
   readonly animeListSites = ANIME_LIST_SITES;
   readonly songDistLinks = SONG_DIST_LINKS;
 
-  readonly sortColumn = signal<SongColumnId | null>(null);
-  readonly sortAscending = signal(false);
+  readonly sortColumn = this.table.sortColumn;
+  readonly sortAscending = this.table.sortAscending;
   readonly activeSong = computed(() => {
     const modal = this.modalService.active();
     if (modal?.type !== 'song-info') return null;
     return this.songTable()?.includes(modal.song) ? modal.song : null;
   });
-  readonly activeSongIndex = computed(() => {
-    const song = this.activeSong();
-    return song ? (this.songTable()?.indexOf(song) ?? -1) : -1;
-  });
   private readonly draggedSong = signal<SongRow | null>(null);
   private readonly dragOverSong = signal<SongRow | null>(null);
   private readonly dragInsertAfter = signal(false);
-
-  readonly tableStats = computed(() => computeTableStats(this.songTable(), this.animeTitleLang()));
 
   readonly clipboardPopup = signal<{ left: string; top: string } | null>(null);
   private clipboardPopupTimeout?: ReturnType<typeof setTimeout>;
@@ -122,7 +86,7 @@ export class SongTableComponent implements OnDestroy {
   readonly hasAnnSongId = hasAnnSongId;
 
   requestAudioPlayback(song: SongRow) {
-    this.playAudioRequested.emit(song);
+    this.audioPlayback.play(song);
   }
 
   openPlaylistPicker(song: SongRow): void {
@@ -132,7 +96,7 @@ export class SongTableComponent implements OnDestroy {
     if (this.autoAddToPlaylist() && playlist) {
       const result = this.playlistService.toggleSong(playlist.id, song.annSongId);
       const message = PLAYLIST_TOGGLE_MESSAGES[result];
-      if (message) this.notificationRequested.emit(message);
+      if (message) this.notifications.show(message);
       if (result === 'added' || result === 'removed' || result === 'full') return;
     }
 
@@ -143,13 +107,7 @@ export class SongTableComponent implements OnDestroy {
     return this.autoAddSongIds().has(song.annSongId);
   }
 
-  closePlaylistPicker(): void {
-    this.modalService.close('playlist-picker');
-  }
-
   constructor() {
-    let previousAnimeTitleLang = this.animeTitleLang();
-
     effect(() => {
       if (this.showTableStats()) {
         this.showColumnSettings.set(false);
@@ -165,33 +123,25 @@ export class SongTableComponent implements OnDestroy {
     });
 
     effect(() => {
-      this.searchRevision();
-      if (this.resultOrder() === 'playlist') {
-        this.clearSortState();
-      } else {
-        this.resetSortStateForNewSearch();
+      const activeModal = this.modalService.active();
+      if (activeModal?.type !== 'song-info' && activeModal?.type !== 'playlist-picker') {
+        return;
       }
-      this.closeSongInfoPopup();
-      this.clearDragState();
+
+      if (!this.songTable()?.includes(activeModal.song)) {
+        this.modalService.close(activeModal.type);
+      }
     });
 
     effect(() => {
-      const animeTitleLang = this.animeTitleLang();
-      const languageChanged = animeTitleLang !== previousAnimeTitleLang;
-      previousAnimeTitleLang = animeTitleLang;
-
-      if (languageChanged && untracked(this.sortColumn) === 'anime') {
-        this.clearSortState();
-      }
+      this.songSearchController.searchRevision();
+      this.closeSongInfoPopup();
+      this.clearDragState();
     });
   }
 
   isColumnVisible(columnId: SongColumnId) {
-    return this.tableSettings.isVisible(columnId);
-  }
-
-  isColumnSortable(columnId: SongColumnId) {
-    return this.availableColumns.find((column) => column.id === columnId)?.sortable ?? false;
+    return this.table.isVisible(columnId);
   }
 
   getDistLink(filename: string | null | undefined) {
@@ -203,7 +153,7 @@ export class SongTableComponent implements OnDestroy {
   }
 
   toggleColumn(columnId: SongColumnId, visible: boolean) {
-    this.tableSettings.setVisible(columnId, visible);
+    this.table.setVisible(columnId, visible);
   }
 
   private ensureSelectedPlaylist() {
@@ -240,9 +190,9 @@ export class SongTableComponent implements OnDestroy {
     // promise; if the copy ends up failing, notify afterwards.
     const copyPromise = navigator.clipboard?.writeText(String(copytext ?? ''));
     if (copyPromise) {
-      copyPromise.catch(() => this.notificationRequested.emit('Clipboard copy failed.'));
+      copyPromise.catch(() => this.notifications.show('Clipboard copy failed.'));
     } else {
-      this.notificationRequested.emit('Clipboard copy failed.');
+      this.notifications.show('Clipboard copy failed.');
     }
 
     this.clipboardPopupTimeout = setTimeout(() => {
@@ -259,7 +209,7 @@ export class SongTableComponent implements OnDestroy {
     this.clearClipboardPopupSchedule();
   }
 
-  closeSongInfoPopup() {
+  private closeSongInfoPopup() {
     this.modalService.close('song-info');
   }
 
@@ -270,37 +220,14 @@ export class SongTableComponent implements OnDestroy {
     }
   }
 
-  private resetSortStateForNewSearch() {
-    this.sortColumn.set('annId');
-    this.sortAscending.set(true);
-  }
-
-  private clearSortState() {
-    this.sortColumn.set(null);
-    this.sortAscending.set(false);
-  }
-
   sortFunction(columnId: SongColumnId) {
-    const table = this.songTable();
-    if (!table || !this.isColumnSortable(columnId)) {
-      return;
-    }
-
-    const ascending = this.sortColumn() === columnId ? !this.sortAscending() : true;
-    this.sortColumn.set(columnId);
-    this.sortAscending.set(ascending);
-    this.songTableChange.emit(sortSongTable(table, columnId, ascending, this.animeTitleLang()));
+    this.table.sort(columnId);
   }
 
   shuffleTable() {
-    const table = this.songTable();
-    if (!table || table.length < 2) {
-      return;
+    if (this.table.shuffle()) {
+      this.showColumnSettings.set(false);
     }
-
-    this.clearSortState();
-    this.showColumnSettings.set(false);
-    this.songTableChange.emit(shuffleSongTable(table));
   }
 
   onAnyClick(event: MouseEvent) {
@@ -319,17 +246,6 @@ export class SongTableComponent implements OnDestroy {
     } else if (this.showColumnSettings()) {
       this.showColumnSettings.set(false);
     }
-  }
-
-  navigateSongInfoPopup(delta: number) {
-    const table = this.songTable();
-    const index = this.activeSongIndex();
-    if (!table || table.length <= 1 || index < 0) {
-      return;
-    }
-
-    const song = table[(index + delta + table.length) % table.length];
-    this.modalService.open({ type: 'song-info', song });
   }
 
   getColumnDisplayValue(song: SongRow, columnId: SongColumnId) {
@@ -351,14 +267,13 @@ export class SongTableComponent implements OnDestroy {
   }
 
   deleteRowEntry(song: SongRow) {
-    const table = this.songTable();
-    if (!table) return;
-    const nextTable = removeSongFromTable(table, song);
-    if (!nextTable) return;
-    if (this.activeSong() === song) {
-      this.closeSongInfoPopup();
+    const activeModal = this.modalService.active();
+    if ((activeModal?.type === 'song-info' || activeModal?.type === 'playlist-picker')
+      && activeModal.song === song) {
+      this.modalService.close(activeModal.type);
     }
-    this.songTableChange.emit(nextTable);
+
+    this.table.remove(song)
   }
 
   onRowDragStart(event: DragEvent, song: SongRow) {
@@ -394,15 +309,11 @@ export class SongTableComponent implements OnDestroy {
     event.stopPropagation();
 
     const draggedSong = this.draggedSong();
-    const table = this.songTable();
-    const nextTable = draggedSong && table
-      ? moveSongInTable(table, draggedSong, targetSong, this.dragInsertAfter())
-      : null;
+    const moved = draggedSong
+      ? this.table.move(draggedSong, targetSong, this.dragInsertAfter())
+      : false;
     this.clearDragState();
-    if (!nextTable) return;
-
-    this.clearSortState();
-    this.songTableChange.emit(nextTable);
+    if (!moved) return;
   }
 
   onRowDragEnd() {

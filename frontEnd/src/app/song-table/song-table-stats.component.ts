@@ -1,9 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, input, model, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, model, output, signal } from '@angular/core';
 import { RankedStatusService } from '../core/services/ranked-status.service';
-import { AnimeTitleLanguage } from '../core/services/user-preferences.service';
+import { UserPreferencesService } from '../core/services/user-preferences.service';
 import { SongSearchController } from '../core/services/song-search-controller.service';
-import { StatBreakdownEntry, TableStats } from './song-table.types';
-import { formatAvgLength } from './song-table.utils';
+import { SongTableController } from './song-table.controller';
+import { computeTableStats, formatAvgLength, StatBreakdownEntry } from './song-table-stats';
 
 type StatsTab = 'types' | 'anime' | 'artists' | 'difficulty';
 
@@ -25,8 +25,12 @@ export class SongTableStatsComponent {
   private readonly host = inject(ElementRef<HTMLElement>);
   private readonly songSearchController = inject(SongSearchController);
   private readonly rankedStatusService = inject(RankedStatusService);
-  readonly stats = input.required<TableStats>();
-  readonly animeTitleLang = input<AnimeTitleLanguage>('JP');
+  private readonly table = inject(SongTableController);
+  private readonly preferences = inject(UserPreferencesService);
+  readonly stats = computed(() => computeTableStats(
+    this.table.songs(),
+    this.preferences.preferences().animeTitleLanguage,
+  ));
   readonly open = model(false);
   readonly copyText = output<{ event: MouseEvent; text: string }>();
   readonly activeTab = signal<StatsTab>('types');

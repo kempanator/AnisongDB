@@ -1,21 +1,14 @@
-import {
-  afterRenderEffect,
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  ElementRef,
-  inject,
-  input,
-  output,
-  viewChild,
-} from '@angular/core';
-import { SongRow } from '../core/models/song';
+import { afterRenderEffect, ChangeDetectionStrategy, Component, computed, ElementRef, inject, input, output, viewChild } from '@angular/core';
+import { SongCredit, SongRow } from '../core/models/song';
 import { DistServerService } from '../core/services/dist-server.service';
+import { ModalService } from '../core/services/modal.service';
 import { RankedStatusService } from '../core/services/ranked-status.service';
 import { SongSearchController } from '../core/services/song-search-controller.service';
+import { UserPreferencesService } from '../core/services/user-preferences.service';
 import { ModalShellComponent } from '../shared/modal-shell.component';
-import { buildSongInfoView, collectPersonIds, creditSearchTitle } from './song-table.utils';
-import { CreditPerson, CreditSearchRole } from './song-table.types';
+import { buildSongInfoView, CreditSearchRole, creditSearchTitle } from './song-info';
+import { SongTableController } from './song-table.controller';
+import { collectPersonIds } from './song-table.utils';
 
 @Component({
   selector: 'app-song-info-modal',
@@ -29,20 +22,20 @@ export class SongInfoModalComponent {
   private readonly songSearchController = inject(SongSearchController);
   private readonly rankedStatusService = inject(RankedStatusService);
   private readonly distServerService = inject(DistServerService);
+  private readonly modalService = inject(ModalService);
+  private readonly preferences = inject(UserPreferencesService);
+  private readonly table = inject(SongTableController);
 
   readonly song = input.required<SongRow>();
-  readonly rowIndex = input(0);
-  readonly totalRows = input(0);
-  readonly showAmqSongId = input(false);
   readonly clipboardPopup = input<{ left: string; top: string } | null>(null);
   readonly modalContent = viewChild<ElementRef<HTMLElement>>('modalContent');
 
-  readonly closed = output<void>();
   readonly copyText = output<{ event: MouseEvent; text: string }>();
-  readonly navigate = output<number>();
-  private readonly modal = viewChild.required(ModalShellComponent);
 
   readonly rankedActive = this.rankedStatusService.active;
+  readonly rowIndex = computed(() => this.table.songs()?.indexOf(this.song()) ?? -1);
+  readonly totalRows = computed(() => this.table.songs()?.length ?? 0);
+  readonly showAmqSongId = computed(() => this.preferences.preferences().showAmqSongId);
   readonly creditSearchTitle = creditSearchTitle;
 
   readonly info = computed(() => {
@@ -71,7 +64,7 @@ export class SongInfoModalComponent {
     if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
       event.preventDefault();
       event.stopPropagation();
-      this.navigate.emit(event.key === 'ArrowLeft' ? -1 : 1);
+      this.navigate(event.key === 'ArrowLeft' ? -1 : 1);
     }
   }
 
@@ -84,7 +77,22 @@ export class SongInfoModalComponent {
     return `repeat(${this.maxGridColumns - parentColumns + 1}, 1fr)`;
   }
 
-  searchCredit(person: CreditPerson, role: CreditSearchRole, event?: MouseEvent) {
+  close(): void {
+    this.modalService.close('song-info');
+  }
+
+  navigate(delta: number): void {
+    const songs = this.table.songs();
+    const index = songs?.indexOf(this.song()) ?? -1;
+    if (!songs || songs.length <= 1 || index < 0) return;
+
+    this.modalService.open({
+      type: 'song-info',
+      song: songs[(index + delta + songs.length) % songs.length],
+    });
+  }
+
+  searchCredit(person: SongCredit, role: CreditSearchRole, event?: MouseEvent) {
     event?.stopPropagation();
     const personIds = collectPersonIds(person);
     const searchStarted = role === 'artist'
@@ -92,7 +100,7 @@ export class SongInfoModalComponent {
       : this.songSearchController.searchComposerIds(personIds);
 
     if (searchStarted) {
-      this.modal().close();
+      this.close();
     }
   }
 
@@ -103,21 +111,21 @@ export class SongInfoModalComponent {
     }
 
     if (this.songSearchController.searchSeason(season)) {
-      this.modal().close();
+      this.close();
     }
   }
 
   searchAnnId(id: string | number, event?: MouseEvent) {
     event?.stopPropagation();
     if (this.songSearchController.searchAnnIds([id])) {
-      this.modal().close();
+      this.close();
     }
   }
 
   searchAmqSongId(id: string | number, event?: MouseEvent) {
     event?.stopPropagation();
     if (this.songSearchController.searchAmqSongIds([id])) {
-      this.modal().close();
+      this.close();
     }
   }
 }

@@ -31,12 +31,14 @@ export class SongSearchController {
   // The key prevents an identical in-flight request from being restarted.
   // Completed searches are not cached or deduplicated.
   private activeSearch: { key: string; subscription: Subscription } | null = null;
+  private readonly searchingSignal = signal(false);
 
   readonly songList = signal<SongRow[] | null>(null);
   readonly searchRevision = signal(0);
   readonly resultOrder = signal<'default' | 'playlist'>('default');
   readonly searchError = signal<string | null>(null);
   readonly playlistLoadResult = signal<PlaylistLoadResult | null>(null);
+  readonly searching = this.searchingSignal.asReadonly();
 
   constructor() {
     this.destroyRef.onDestroy(() => this.activeSearch?.subscription.unsubscribe());
@@ -58,7 +60,13 @@ export class SongSearchController {
   }
 
   replaceSongList(songList: SongRow[]): void {
-    this.songList.set(songList);
+    this.setSongList(songList);
+  }
+
+  cancelSearch(): boolean {
+    const hadActiveSearch = this.activeSearch !== null;
+    this.cancelActiveSearch();
+    return hadActiveSearch;
   }
 
   searchSeason(season: string): boolean {
@@ -82,7 +90,7 @@ export class SongSearchController {
       this.searchError.set(null);
       this.playlistLoadResult.set({ source, requestedCount: 0, loadedCount: 0 });
       this.resultOrder.set('playlist');
-      this.songList.set([]);
+      this.setSongList([]);
       this.searchRevision.update((revision) => revision + 1);
       return;
     }
@@ -122,6 +130,7 @@ export class SongSearchController {
     const request = this.requestFor(command);
     this.cancelActiveSearch();
     this.searchError.set(null);
+    this.searchingSignal.set(true);
     const searchKey = this.searchKey(command);
 
     const subscription = request.subscribe({
@@ -139,7 +148,7 @@ export class SongSearchController {
         }
 
         this.resultOrder.set(playlistLoad ? 'playlist' : 'default');
-        this.songList.set(nextSongList);
+        this.setSongList(nextSongList);
         this.searchRevision.update((revision) => revision + 1);
       },
       error: (error: unknown) => {
@@ -158,10 +167,16 @@ export class SongSearchController {
     // generation counter or stale-callback guard would be redundant here.
     this.activeSearch?.subscription.unsubscribe();
     this.activeSearch = null;
+    this.searchingSignal.set(false);
   }
 
   private finishSearch(): void {
     this.activeSearch = null;
+    this.searchingSignal.set(false);
+  }
+
+  private setSongList(songList: SongRow[]): void {
+    this.songList.set(songList);
   }
 
   private searchKey(command: SearchCommand): string {

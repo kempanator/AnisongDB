@@ -1,13 +1,8 @@
 @if (activeSong(); as activeSong) {
   <app-song-info-modal
     [song]="activeSong"
-    [rowIndex]="activeSongIndex()"
-    [totalRows]="songTable()?.length ?? 0"
-    [showAmqSongId]="showAmqSongId()"
     [clipboardPopup]="clipboardPopup()"
-    (closed)="closeSongInfoPopup()"
     (copyText)="onModalCopy($event)"
-    (navigate)="navigateSongInfoPopup($event)"
   />
 }
 
@@ -26,8 +21,6 @@
 
       @if (songTable()) {
         <app-song-table-stats
-          [stats]="tableStats()"
-          [animeTitleLang]="animeTitleLang()"
           [(open)]="showTableStats"
           (copyText)="onModalCopy($event)"
         />
@@ -354,8 +347,5 @@
 @if (songToAddToPlaylist(); as song) {
   <app-song-playlist-picker
     [song]="song"
-    (closed)="closePlaylistPicker()"
-    (managePlaylistsRequested)="managePlaylistsRequested.emit()"
-    (notificationRequested)="notificationRequested.emit($event)"
   />
 }

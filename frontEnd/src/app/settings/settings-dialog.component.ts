@@ -1,10 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  output,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, output } from '@angular/core';
 import { DistServerService } from '../core/services/dist-server.service';
 import { NotificationService } from '../core/services/notification.service';
 import { ThemeService } from '../core/services/theme.service';

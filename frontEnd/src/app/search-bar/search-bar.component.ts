@@ -1,26 +1,10 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  input,
-  OnInit,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, OnInit } from '@angular/core';
 import { RankedStatus, RankedStatusService } from '../core/services/ranked-status.service';
 import { NotificationService } from '../core/services/notification.service';
 import { SongSearchController } from '../core/services/song-search-controller.service';
 import { UserPreferencesService } from '../core/services/user-preferences.service';
-import { SongRow } from '../core/models/song';
 import { downloadJsonFile } from '../shared/download-json-file';
-import {
-  AdvancedLookupType,
-  AdvancedSearchFieldMode,
-  buildSearchCommand,
-  SearchCombination,
-  SearchFormState,
-  SearchMatchMode,
-  searchValidationError,
-} from './search-query';
+import { AdvancedLookupType, AdvancedSearchFieldMode, buildSearchCommand, SearchCombination, SearchFormState, SearchMatchMode, searchValidationError } from './search-query';
 
 @Component({
   selector: 'app-search-bar',
@@ -34,7 +18,6 @@ export class SearchBarComponent implements OnInit {
   private readonly rankedStatusService = inject(RankedStatusService);
   private readonly notifications = inject(NotificationService);
 
-  readonly currentSongList = input<SongRow[] | null>();
   readonly showAdvancedFilters = computed(
     () => this.userPreferencesService.preferences().searchMode === 'advanced',
   );
@@ -225,7 +208,7 @@ export class SearchBarComponent implements OnInit {
   downloadJson(): void {
     downloadJsonFile(
       this.buildDownloadFileName(),
-      this.currentSongList() ?? [],
+      this.songSearchController.songList() ?? [],
     );
   }
 }

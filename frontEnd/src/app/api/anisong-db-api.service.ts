@@ -1,101 +1,66 @@
-import { inject, Injectable } from '@angular/core';
-import { SearchCommand } from '../core/models/search';
-import { SongRow } from '../core/models/song';
-import { AudioPlaybackService, AudioPlaybackState } from '../core/services/audio-playback.service';
+import { effect, inject, Injectable, Injector, untracked } from '@angular/core';
+import { AudioPlaybackService } from '../core/services/audio-playback.service';
+import { DistServerService } from '../core/services/dist-server.service';
+import { ModalService } from '../core/services/modal.service';
+import { NotificationService } from '../core/services/notification.service';
+import { RankedStatusService } from '../core/services/ranked-status.service';
 import { SongSearchController } from '../core/services/song-search-controller.service';
-import {
-  SettingsTabCleanup,
-  SettingsTabDefinition,
-  SettingsTabRegistryService,
-} from '../settings/settings-tab-registry.service';
+import { ThemeService } from '../core/services/theme.service';
+import { UserPreferencesService } from '../core/services/user-preferences.service';
+import { PlaylistService } from '../playlist/playlist.service';
+import { SettingsTabRegistryService } from '../settings/settings-tab-registry.service';
+import { SongTableController } from '../song-table/song-table.controller';
 
-export interface AnisongDBSettingsApi {
-  registerTab(definition: SettingsTabDefinition): SettingsTabCleanup;
-}
+/**
+ * Publishes a deliberately thin userscript bridge over raw Angular services.
+ */
+@Injectable({ providedIn: 'root' })
+export class AnisongDBApiService {
+  private readonly injector = inject(Injector);
 
-export interface AnisongDBSearchState {
-  readonly results: readonly SongRow[] | null;
-  readonly error: string | null;
-  readonly revision: number;
-}
+  private readonly services = Object.freeze({
+    playback: inject(AudioPlaybackService),
+    distServers: inject(DistServerService),
+    modals: inject(ModalService),
+    notifications: inject(NotificationService),
+    playlists: inject(PlaylistService),
+    preferences: inject(UserPreferencesService),
+    rankedStatus: inject(RankedStatusService),
+    searches: inject(SongSearchController),
+    settingsTabs: inject(SettingsTabRegistryService),
+    table: inject(SongTableController),
+    themes: inject(ThemeService),
+  });
 
-export interface AnisongDBSearchApi {
-  /**
-   * Runs the same search pipeline used by the UI and replaces the table results.
-   * Returns false only when an identical request is already in flight.
-   */
-  run(command: SearchCommand): boolean;
-  getState(): AnisongDBSearchState;
-}
+  readonly api = Object.freeze({
+    services: this.services,
+    watch: <T>(
+      read: () => T,
+      listener: (value: T) => void,
+    ) => this.watch(read, listener),
+  });
 
-export interface AnisongDBAudioApi {
-  play(song: SongRow): void;
-  pause(): void;
-  seek(time: number): boolean;
-  next(): boolean;
-  previous(): boolean;
-  stop(): void;
-  getState(): AudioPlaybackState;
-}
+  private watch<T>(
+    read: () => T,
+    listener: (value: T) => void,
+  ): () => void {
+    const watcher = effect(() => {
+      const value = read();
+      untracked(() => {
+        try {
+          listener(value);
+        } catch (error) {
+          console.error('An AnisongDB userscript watcher failed.', error);
+        }
+      });
+    }, { injector: this.injector });
 
-export interface AnisongDBGlobal {
-  settings?: AnisongDBSettingsApi;
-  search?: AnisongDBSearchApi;
-  audio?: AnisongDBAudioApi;
+    return () => watcher.destroy();
+  }
 }
 
 declare global {
   interface Window {
-    AnisongDB?: AnisongDBGlobal;
-  }
-}
-
-/**
- * Owns the browser API exposed to userscripts. Feature services remain unaware
- * of window globals; this adapter is the single place that publishes them.
- */
-@Injectable({ providedIn: 'root' })
-export class AnisongDBApiService {
-  private readonly settingsTabs = inject(SettingsTabRegistryService);
-  private readonly searches = inject(SongSearchController);
-  private readonly playback = inject(AudioPlaybackService);
-
-  constructor() {
-    this.installWindowApi();
-  }
-
-  private installWindowApi(): void {
-    if (typeof window === 'undefined') return;
-
-    const existing = window.AnisongDB ?? {};
-    window.AnisongDB = {
-      ...existing,
-      settings: {
-        ...existing.settings,
-        registerTab: (definition) => this.settingsTabs.registerTab(definition),
-      },
-      search: {
-        ...existing.search,
-        run: (command) => this.searches.runSearch(command),
-        getState: () => {
-          const results = this.searches.songList();
-          return {
-            results: results ? [...results] : null,
-            error: this.searches.searchError(),
-            revision: this.searches.searchRevision(),
-          };
-        },
-      },
-      audio: {
-        ...existing.audio,
-        play: (song) => this.playback.play(song),
-        pause: () => this.playback.pause(),
-        seek: (time) => this.playback.seek(time),
-        next: () => this.playback.next(),
-        previous: () => this.playback.previous(),
-        stop: () => this.playback.stop(),
-        getState: () => this.playback.state(),
-      },
-    };
+    AnisongDB?: AnisongDBApiService['api'];
   }
 }

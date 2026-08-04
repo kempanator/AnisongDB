@@ -1,6 +1,6 @@
 @if (info(); as info) {
   <app-modal-shell titleId="song-modal-song-name" dialogId="song-info-modal" closeButtonId="song-modal-close"
-    closeLabel="Close song info" size="wide" (closed)="closed.emit()">
+    closeLabel="Close song info" size="wide" (closed)="close()">
     <div modal-title class="song-modal-title-group">
       <h2
         id="song-modal-song-name"

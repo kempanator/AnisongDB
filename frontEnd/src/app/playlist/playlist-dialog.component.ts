@@ -1,14 +1,4 @@
-import {
-  afterNextRender,
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  Injector,
-  output,
-  signal,
-  viewChild,
-} from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, inject, Injector, output, signal, viewChild } from '@angular/core';
 import { formatSongCount } from '../core/models/song';
 import { NotificationService } from '../core/services/notification.service';
 import { SongSearchController } from '../core/services/song-search-controller.service';

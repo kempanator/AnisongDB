@@ -1,8 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import {
-  StoredUserPreferences,
-  UserPreferencesService,
-} from '../core/services/user-preferences.service';
+import { StoredUserPreferences, UserPreferencesService } from '../core/services/user-preferences.service';
 import { downloadJsonFile } from '../shared/download-json-file';
 
 interface PreferencesBackup {

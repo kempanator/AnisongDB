@@ -1,4 +1,3 @@
-import { inject, provideAppInitializer } from '@angular/core';
 import { bootstrapApplication } from '@angular/platform-browser';
 import { provideHttpClient } from '@angular/common/http';
 import { AppComponent } from './app/app.component';
@@ -9,11 +8,9 @@ import 'vidstack/player/layouts/default';
 import 'vidstack/player/ui';
 
 bootstrapApplication(AppComponent, {
-  providers: [
-    provideHttpClient(),
-    provideAppInitializer(() => {
-      inject(AnisongDBApiService);
-    }),
-  ],
+  providers: [provideHttpClient()],
 })
-  .catch((err) => console.error(err));
+  .then(({ injector }) => {
+    window.AnisongDB = injector.get(AnisongDBApiService).api;
+  })
+  .catch(console.error);

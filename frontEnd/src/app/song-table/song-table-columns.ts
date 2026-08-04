@@ -3,39 +3,41 @@ import type { AnimeTitleLanguage } from '../core/services/user-preferences.servi
 import type { SongRow, SortableSongValue } from '../core/models/song';
 import { formatSongLength, getBroadcastLabel } from './song-table.utils';
 
-export type SongColumnId =
-  | 'info'
-  | 'rowNumber'
-  | 'annId'
-  | 'annSongId'
-  | 'amqSongId'
-  | 'animeLists'
-  | 'season'
-  | 'animeCategory'
-  | 'anime'
-  | 'broadcast'
-  | 'songType'
-  | 'performance'
-  | 'songName'
-  | 'artist'
-  | 'composer'
-  | 'arranger'
-  | 'difficulty'
-  | 'length'
-  | 'songLinks'
-  | 'playAudio'
-  | 'addPlaylist'
-  | 'moveRow'
-  | 'deleteRow';
+type SongColumnReader<Value> = (
+  song: SongRow,
+  language: AnimeTitleLanguage,
+) => Value;
 
-export type SongColumnDefinition = {
-  id: SongColumnId;
+type SortableSongField = {
+  [Field in keyof SongRow]: SongRow[Field] extends SortableSongValue ? Field : never;
+}[keyof SongRow];
+
+type SongColumnComparator = (
+  left: SongRow,
+  right: SongRow,
+  language: AnimeTitleLanguage,
+) => number;
+
+type SongColumnConfig<Id extends string = string> = {
+  id: Id;
   header: string;
   visibilityLabel?: string;
   defaultVisible: boolean;
   sortable: boolean;
   centered?: boolean;
   nowrap?: boolean;
+
+  // Plain fields provide the default sort, display, and copy values.
+  field?: SortableSongField;
+
+  // Derived sort keys affect ordering only and are never displayed implicitly.
+  sortKey?: SongColumnReader<SortableSongValue>;
+  compare?: SongColumnComparator;
+
+  // Columns can insert a secondary comparison before the shared fallback chain.
+  tieBreak?: SongColumnComparator;
+  display?: SongColumnReader<string | number>;
+  copy?: SongColumnReader<string>;
 };
 
 export type AnimeListSite = {
@@ -46,35 +48,223 @@ export type AnimeListSite = {
 
 export type SongDistLink = {
   label: string;
+  infoLabel: string;
   title: string;
   field: 'HQ' | 'MQ' | 'audio';
 };
 
-export const SONG_TABLE_COLUMNS: readonly SongColumnDefinition[] = [
-  { id: 'info', header: 'Info', defaultVisible: true, sortable: false, centered: true },
-  { id: 'rowNumber', header: '#', visibilityLabel: 'Row Number', defaultVisible: false, sortable: false, centered: true },
-  { id: 'annId', header: 'ANN ID', defaultVisible: true, sortable: true, nowrap: true },
-  { id: 'annSongId', header: 'ANN Song ID', defaultVisible: false, sortable: true },
-  { id: 'amqSongId', header: 'AMQ Song ID', defaultVisible: false, sortable: true },
-  { id: 'animeLists', header: 'Anime Lists', defaultVisible: false, sortable: false, nowrap: true },
-  { id: 'season', header: 'Season', defaultVisible: true, sortable: true },
-  { id: 'animeCategory', header: 'Anime Category', defaultVisible: false, sortable: true },
-  { id: 'anime', header: 'Anime', defaultVisible: true, sortable: true },
-  { id: 'broadcast', header: 'Broadcast', defaultVisible: false, sortable: true, nowrap: true },
-  { id: 'songType', header: 'Song Type', defaultVisible: true, sortable: true, nowrap: true },
-  { id: 'performance', header: 'Performance', defaultVisible: false, sortable: true },
-  { id: 'songName', header: 'Song Name', defaultVisible: true, sortable: true },
-  { id: 'artist', header: 'Artist', defaultVisible: true, sortable: true },
-  { id: 'composer', header: 'Composer', defaultVisible: false, sortable: true },
-  { id: 'arranger', header: 'Arranger', defaultVisible: false, sortable: true },
-  { id: 'difficulty', header: 'Difficulty', defaultVisible: false, sortable: true },
-  { id: 'length', header: 'Length', defaultVisible: false, sortable: true },
-  { id: 'songLinks', header: 'Song Links', defaultVisible: false, sortable: false, nowrap: true },
-  { id: 'playAudio', header: 'Play', visibilityLabel: 'Play Audio', defaultVisible: true, sortable: false, centered: true },
-  { id: 'addPlaylist', header: 'Add', visibilityLabel: 'Add to Playlist', defaultVisible: false, sortable: false, centered: true },
-  { id: 'moveRow', header: 'Move', visibilityLabel: 'Move Row', defaultVisible: false, sortable: false, centered: true },
-  { id: 'deleteRow', header: 'Del', visibilityLabel: 'Delete Row', defaultVisible: true, sortable: false, centered: true },
-];
+const getAnimeTitle: SongColumnReader<string> = (song, language) =>
+  language === 'JP' ? song.animeJPName : song.animeENName;
+
+const compareSongNames: SongColumnComparator = (left, right) =>
+  comparePrimitiveValues(left.songName, right.songName);
+
+const SONG_TABLE_COLUMN_CONFIGS = [
+  {
+    id: 'info',
+    header: 'Info',
+    defaultVisible: true,
+    sortable: false,
+    centered: true,
+  },
+  {
+    id: 'rowNumber',
+    header: '#',
+    visibilityLabel: 'Row Number',
+    defaultVisible: false,
+    sortable: false,
+    centered: true,
+  },
+  {
+    id: 'annId',
+    header: 'ANN ID',
+    defaultVisible: true,
+    sortable: true,
+    nowrap: true,
+    field: 'annId',
+    tieBreak: (left, right) => compareSongTypes(left.songType, right.songType),
+  },
+  {
+    id: 'annSongId',
+    header: 'ANN Song ID',
+    defaultVisible: false,
+    sortable: true,
+    field: 'annSongId',
+    display: (song) => song.annSongId !== -1 ? song.annSongId : '–',
+  },
+  {
+    id: 'amqSongId',
+    header: 'AMQ Song ID',
+    defaultVisible: false,
+    sortable: true,
+    field: 'amqSongId',
+  },
+  {
+    id: 'animeLists',
+    header: 'Anime Lists',
+    defaultVisible: false,
+    sortable: false,
+    nowrap: true,
+  },
+  {
+    id: 'season',
+    header: 'Season',
+    defaultVisible: true,
+    sortable: true,
+    field: 'animeVintage',
+    sortKey: (song) => {
+      const parsed = parseVintage(song.animeVintage || '');
+      return parsed.year === null ? -1 : parsed.year * 10 + parsed.seasonIndex;
+    },
+    tieBreak: (left, right, language) =>
+      comparePrimitiveValues(
+        getAnimeTitle(left, language),
+        getAnimeTitle(right, language),
+      ) || compareSongTypes(left.songType, right.songType),
+    display: (song) => getSeasonYearValue(song),
+  },
+  {
+    id: 'animeCategory',
+    header: 'Anime Category',
+    defaultVisible: false,
+    sortable: true,
+    field: 'animeCategory',
+  },
+  {
+    id: 'anime',
+    header: 'Anime',
+    defaultVisible: true,
+    sortable: true,
+    sortKey: getAnimeTitle,
+    tieBreak: (left, right) => compareSongTypes(left.songType, right.songType),
+    display: getAnimeTitle,
+  },
+  {
+    id: 'broadcast',
+    header: 'Broadcast',
+    defaultVisible: false,
+    sortable: true,
+    nowrap: true,
+    sortKey: (song) => song.isDub && song.isRebroadcast
+      ? 3
+      : song.isRebroadcast ? 2 : song.isDub ? 1 : 0,
+    display: (song) => getBroadcastLabel(song),
+  },
+  {
+    id: 'songType',
+    header: 'Song Type',
+    defaultVisible: true,
+    sortable: true,
+    nowrap: true,
+    field: 'songType',
+    compare: (left, right) => compareSongTypes(left.songType, right.songType),
+  },
+  {
+    id: 'performance',
+    header: 'Performance',
+    defaultVisible: false,
+    sortable: true,
+    field: 'songCategory',
+  },
+  {
+    id: 'songName',
+    header: 'Song Name',
+    defaultVisible: true,
+    sortable: true,
+    field: 'songName',
+  },
+  {
+    id: 'artist',
+    header: 'Artist',
+    defaultVisible: true,
+    sortable: true,
+    field: 'songArtist',
+    tieBreak: compareSongNames,
+  },
+  {
+    id: 'composer',
+    header: 'Composer',
+    defaultVisible: false,
+    sortable: true,
+    field: 'songComposer',
+    tieBreak: compareSongNames,
+  },
+  {
+    id: 'arranger',
+    header: 'Arranger',
+    defaultVisible: false,
+    sortable: true,
+    field: 'songArranger',
+    tieBreak: compareSongNames,
+  },
+  {
+    id: 'difficulty',
+    header: 'Difficulty',
+    defaultVisible: false,
+    sortable: true,
+    field: 'songDifficulty',
+    sortKey: (song) => Number(song.songDifficulty ?? -1),
+    display: (song) => song.songDifficulty != null ? `${song.songDifficulty}%` : '–',
+    copy: (song) => String(song.songDifficulty ?? ''),
+  },
+  {
+    id: 'length',
+    header: 'Length',
+    defaultVisible: false,
+    sortable: true,
+    field: 'songLength',
+    sortKey: (song) => Number(song.songLength ?? -1),
+    display: (song) => formatSongLength(song.songLength) || '–',
+  },
+  {
+    id: 'songLinks',
+    header: 'Song Links',
+    defaultVisible: false,
+    sortable: false,
+    nowrap: true,
+  },
+  {
+    id: 'playAudio',
+    header: 'Play',
+    visibilityLabel: 'Play Audio',
+    defaultVisible: true,
+    sortable: false,
+    centered: true,
+  },
+  {
+    id: 'addPlaylist',
+    header: 'Add',
+    visibilityLabel: 'Add to Playlist',
+    defaultVisible: false,
+    sortable: false,
+    centered: true,
+  },
+  {
+    id: 'moveRow',
+    header: 'Move',
+    visibilityLabel: 'Move Row',
+    defaultVisible: false,
+    sortable: false,
+    centered: true,
+  },
+  {
+    id: 'deleteRow',
+    header: 'Del',
+    visibilityLabel: 'Delete Row',
+    defaultVisible: true,
+    sortable: false,
+    centered: true,
+  },
+] as const satisfies readonly SongColumnConfig[];
+
+export type SongColumnId = typeof SONG_TABLE_COLUMN_CONFIGS[number]['id'];
+export type SongColumnDefinition = SongColumnConfig<SongColumnId>;
+export const SONG_TABLE_COLUMNS: readonly SongColumnDefinition[] =
+  SONG_TABLE_COLUMN_CONFIGS;
+
+const SONG_TABLE_COLUMN_BY_ID = new Map<SongColumnId, SongColumnDefinition>(
+  SONG_TABLE_COLUMNS.map((column) => [column.id, column]),
+);
 
 export const ANIME_LIST_SITES: readonly AnimeListSite[] = [
   {
@@ -112,11 +302,11 @@ export const ANIME_LIST_SITES: readonly AnimeListSite[] = [
   },
 ];
 
-export const SONG_DIST_LINKS: readonly SongDistLink[] = [
-  { label: '720', title: 'Open 720 link', field: 'HQ' },
-  { label: '480', title: 'Open 480 link', field: 'MQ' },
-  { label: 'MP3', title: 'Open MP3 link', field: 'audio' },
-];
+export const SONG_DIST_LINKS = [
+  { label: '720', infoLabel: '720p', title: 'Open 720 link', field: 'HQ' },
+  { label: '480', infoLabel: '480p', title: 'Open 480 link', field: 'MQ' },
+  { label: 'MP3', infoLabel: 'MP3', title: 'Open MP3 link', field: 'audio' },
+] as const satisfies readonly SongDistLink[];
 
 const SEASON_ORDER: Record<string, number> = {
   Winter: 0,
@@ -149,57 +339,18 @@ export function getSeasonYearValue(song: SongRow): string {
     : `${parsed.season} ${parsed.year}`;
 }
 
-export function getColumnSortValue(
-  song: SongRow,
-  columnId: SongColumnId,
-  language: AnimeTitleLanguage,
-): SortableSongValue {
-  switch (columnId) {
-    case 'annId': return Number(song.annId ?? -1);
-    case 'annSongId': return Number(song.annSongId ?? -1);
-    case 'amqSongId': return Number(song.amqSongId ?? -1);
-    case 'songType': return song.songType;
-    case 'songName': return song.songName;
-    case 'artist': return song.songArtist;
-    case 'anime': return language === 'JP' ? song.animeJPName : song.animeENName;
-    case 'season': {
-      const parsed = parseVintage(song.animeVintage || '');
-      return parsed.year === null ? -1 : parsed.year * 10 + parsed.seasonIndex;
-    }
-    case 'animeCategory': return song.animeCategory;
-    case 'broadcast': return song.isDub && song.isRebroadcast ? 3 : song.isRebroadcast ? 2 : song.isDub ? 1 : 0;
-    case 'performance': return song.songCategory;
-    case 'difficulty': return Number(song.songDifficulty ?? -1);
-    case 'length': return Number(song.songLength ?? -1);
-    case 'composer': return song.songComposer;
-    case 'arranger': return song.songArranger;
-    default: return null;
-  }
-}
-
 export function getColumnDisplayValue(
   song: SongRow,
   columnId: SongColumnId,
   language: AnimeTitleLanguage,
 ): string | number {
-  switch (columnId) {
-    case 'annId': return song.annId ?? '–';
-    case 'annSongId': return song.annSongId != null && song.annSongId !== -1 ? song.annSongId : '–';
-    case 'amqSongId': return song.amqSongId != null ? song.amqSongId : '–';
-    case 'songType': return song.songType || '–';
-    case 'songName': return song.songName || '–';
-    case 'artist': return song.songArtist || '–';
-    case 'anime': return language === 'JP' ? song.animeJPName : song.animeENName;
-    case 'season': return getSeasonYearValue(song);
-    case 'animeCategory': return song.animeCategory || '–';
-    case 'broadcast': return getBroadcastLabel(song);
-    case 'performance': return song.songCategory || '–';
-    case 'difficulty': return song.songDifficulty != null ? `${song.songDifficulty}%` : '–';
-    case 'length': return formatSongLength(song.songLength) || '–';
-    case 'composer': return song.songComposer || '–';
-    case 'arranger': return song.songArranger || '–';
-    default: return '–';
-  }
+  const column = SONG_TABLE_COLUMN_BY_ID.get(columnId);
+  if (column?.display) return column.display(song, language);
+
+  // Display falls back only to the underlying field, never to an opaque sort key.
+  const value = column ? readFieldValue(column, song) : null;
+  if (value === null || value === undefined || value === '') return '–';
+  return typeof value === 'boolean' ? String(value) : value;
 }
 
 export function getColumnCopyValue(
@@ -207,9 +358,11 @@ export function getColumnCopyValue(
   columnId: SongColumnId,
   language: AnimeTitleLanguage,
 ): string {
+  const copy = SONG_TABLE_COLUMN_BY_ID.get(columnId)?.copy;
+  if (copy) return copy(song, language);
+
   const display = getColumnDisplayValue(song, columnId, language);
   if (display === '–') return '';
-  if (columnId === 'difficulty' && song.songDifficulty != null) return String(song.songDifficulty);
   return String(display);
 }
 
@@ -233,17 +386,43 @@ export function compareSongsByColumn(
   columnId: SongColumnId,
   language: AnimeTitleLanguage,
 ): number {
-  let comparison = columnId === 'songType'
-    ? compareSongTypes(left.songType, right.songType)
+  const column = SONG_TABLE_COLUMN_BY_ID.get(columnId);
+  if (!column?.sortable) return 0;
+
+  // Bespoke comparison wins; otherwise derived keys take precedence over fields.
+  let comparison = column.compare
+    ? column.compare(left, right, language)
     : comparePrimitiveValues(
-        getColumnSortValue(left, columnId, language),
-        getColumnSortValue(right, columnId, language),
+        readSortKey(column, left, language),
+        readSortKey(column, right, language),
       );
 
-  if (comparison === 0 && columnId === 'annId') {
-    comparison = compareSongTypes(left.songType, right.songType);
-  } else if (comparison === 0) {
-    comparison = comparePrimitiveValues(left.annId, right.annId);
+  if (comparison === 0 && column.tieBreak) {
+    comparison = column.tieBreak(left, right, language);
   }
-  return comparison;
+  return comparison || compareDefaultTieBreaks(left, right);
+}
+
+function compareDefaultTieBreaks(left: SongRow, right: SongRow): number {
+  // ANN ID groups an anime; song type and ANN Song ID finish ordering its songs.
+  return comparePrimitiveValues(left.annId, right.annId)
+    || compareSongTypes(left.songType, right.songType)
+    || comparePrimitiveValues(left.annSongId, right.annSongId);
+}
+
+function readSortKey(
+  column: SongColumnConfig,
+  song: SongRow,
+  language: AnimeTitleLanguage,
+): SortableSongValue {
+  if (column.sortKey) return column.sortKey(song, language);
+  return readFieldValue(column, song);
+}
+
+function readFieldValue(
+  column: SongColumnConfig,
+  song: SongRow,
+): SortableSongValue {
+  if (!column.field) return null;
+  return song[column.field] as SortableSongValue;
 }

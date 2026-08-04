@@ -1,12 +1,4 @@
-import {
-  AnimeType,
-  BroadcastType,
-  SearchCommand,
-  SongCategory,
-  SongLinkType,
-  SongSearchBody,
-  SongType,
-} from '../core/models/search';
+import { AnimeType, BroadcastType, SearchCommand, SongCategory, SongLinkType, SongSearchBody, SongType } from '../core/models/search';
 
 type IdField = 'ann_ids' | 'mal_ids' | 'ann_song_ids' | 'amq_song_ids' | 'artist_ids' | 'composer_ids';
 const MAX_ID_SEARCH_COUNT = 500;

@@ -1,15 +1,4 @@
-import {
-  afterNextRender,
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  CUSTOM_ELEMENTS_SCHEMA,
-  effect,
-  ElementRef,
-  inject,
-  OnDestroy,
-  viewChild,
-} from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, CUSTOM_ELEMENTS_SCHEMA, effect, ElementRef, inject, OnDestroy, viewChild } from '@angular/core';
 import { LocalMediaStorage, MediaPlayer } from 'vidstack';
 import { AudioPlaybackCommand, AudioPlaybackService } from './core/services/audio-playback.service';
 import { DistServerService } from './core/services/dist-server.service';

@@ -4,7 +4,7 @@
 
 .song-modal-row-number {
   flex: 0 0 auto;
-  font-size: 15px;
+  font-size: 16px;
   color: var(--text-on-chrome);
   opacity: 0.7;
   white-space: nowrap;
@@ -33,7 +33,7 @@
   gap: 16px;
   min-height: 0;
   padding: 16px;
-  font-size: 15px;
+  font-size: 16px;
   overflow-y: auto;
 }
 
@@ -59,7 +59,7 @@
 
 .song-modal-panel h3 {
   margin: 0;
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.2;
   text-transform: uppercase;
 }

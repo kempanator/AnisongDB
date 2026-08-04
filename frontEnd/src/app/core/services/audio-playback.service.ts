@@ -44,9 +44,9 @@ export class AudioPlaybackService {
     this.commandSignal.set(command);
   }
 
-  pause(): void {
+  pause(): boolean {
     const state = this.stateSignal();
-    if (state.status !== 'loading' && state.status !== 'playing') return;
+    if (state.status !== 'loading' && state.status !== 'playing') return false;
 
     this.stateSignal.set({ status: 'paused', song: state.song, error: null });
     this.commandSignal.set({
@@ -54,6 +54,7 @@ export class AudioPlaybackService {
       type: 'pause',
       song: state.song,
     });
+    return true;
   }
 
   next(): boolean {

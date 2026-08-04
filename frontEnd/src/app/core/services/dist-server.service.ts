@@ -73,6 +73,6 @@ export class DistServerService {
   }
 
   private isDistServer(value: unknown): value is DistServer {
-    return typeof value === 'string' && value in DIST_SERVERS;
+    return typeof value === 'string' && DIST_SERVERS.hasOwnProperty(value);
   }
 }

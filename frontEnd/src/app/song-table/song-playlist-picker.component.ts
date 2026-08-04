@@ -1,8 +1,7 @@
-import { ChangeDetectionStrategy, Component, inject, input, output, viewChild } from '@angular/core';
-import {
-  PLAYLIST_TOGGLE_MESSAGES,
-  PlaylistService,
-} from '../playlist/playlist.service';
+import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
+import { ModalService } from '../core/services/modal.service';
+import { NotificationService } from '../core/services/notification.service';
+import { PLAYLIST_TOGGLE_MESSAGES, PlaylistService } from '../playlist/playlist.service';
 import { ModalShellComponent } from '../shared/modal-shell.component';
 import { formatSongCount, hasAnnSongId, SongRow } from '../core/models/song';
 
@@ -15,10 +14,8 @@ import { formatSongCount, hasAnnSongId, SongRow } from '../core/models/song';
 })
 export class SongPlaylistPickerComponent {
   readonly song = input.required<SongRow>();
-  readonly closed = output<void>();
-  readonly managePlaylistsRequested = output<void>();
-  readonly notificationRequested = output<string>();
-  private readonly modal = viewChild.required(ModalShellComponent);
+  private readonly modalService = inject(ModalService);
+  private readonly notifications = inject(NotificationService);
 
   readonly playlistService = inject(PlaylistService);
   readonly selectedPlaylistId = this.playlistService.selectedPlaylistId;
@@ -53,11 +50,15 @@ export class SongPlaylistPickerComponent {
 
     const result = this.playlistService.toggleSong(playlist.id, song.annSongId);
     const message = PLAYLIST_TOGGLE_MESSAGES[result];
-    if (message) this.notificationRequested.emit(message);
-    if (result === 'added' || result === 'removed') this.modal().close();
+    if (message) this.notifications.show(message);
+    if (result === 'added' || result === 'removed') this.close();
   }
 
   managePlaylists(): void {
-    this.managePlaylistsRequested.emit();
+    this.modalService.open({ type: 'playlists' });
+  }
+
+  close(): void {
+    this.modalService.close('playlist-picker');
   }
 }
