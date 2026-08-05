@@ -8,10 +8,6 @@ type SongColumnReader<Value> = (
   language: AnimeTitleLanguage,
 ) => Value;
 
-type SortableSongField = {
-  [Field in keyof SongRow]: SongRow[Field] extends SortableSongValue ? Field : never;
-}[keyof SongRow];
-
 type SongColumnComparator = (
   left: SongRow,
   right: SongRow,
@@ -26,18 +22,16 @@ type SongColumnConfig<Id extends string = string> = {
   sortable: boolean;
   centered?: boolean;
   nowrap?: boolean;
-
-  // Plain fields provide the default sort, display, and copy values.
-  field?: SortableSongField;
-
-  // Derived sort keys affect ordering only and are never displayed implicitly.
-  sortKey?: SongColumnReader<SortableSongValue>;
-  compare?: SongColumnComparator;
-
-  // Columns can insert a secondary comparison before the shared fallback chain.
-  tieBreak?: SongColumnComparator;
+  // Cell value shown in the table.
   display?: SongColumnReader<string | number>;
+  // Clipboard text value.
   copy?: SongColumnReader<string>;
+  // Primary sort key when `compare` is not set; opaque to the UI.
+  sortBy?: SongColumnReader<SortableSongValue>;
+  // Full primary comparator; wins over `sortBy` when both are present.
+  compare?: SongColumnComparator;
+  // Secondary comparison before the shared default tie-break chain.
+  tieBreak?: SongColumnComparator;
 };
 
 export type AnimeListSite = {
@@ -81,7 +75,9 @@ const SONG_TABLE_COLUMN_CONFIGS = [
     defaultVisible: true,
     sortable: true,
     nowrap: true,
-    field: 'annId',
+    sortBy: (song) => song.annId,
+    display: (song) => song.annId,
+    copy: (song) => String(song.annId),
     tieBreak: (left, right) => compareSongTypes(left.songType, right.songType),
   },
   {
@@ -89,15 +85,18 @@ const SONG_TABLE_COLUMN_CONFIGS = [
     header: 'ANN Song ID',
     defaultVisible: false,
     sortable: true,
-    field: 'annSongId',
-    display: (song) => song.annSongId !== -1 ? song.annSongId : '–',
+    sortBy: (song) => song.annSongId,
+    display: (song) => (song.annSongId !== -1 ? song.annSongId : '–'),
+    copy: (song) => (song.annSongId !== -1 ? String(song.annSongId) : ''),
   },
   {
     id: 'amqSongId',
     header: 'AMQ Song ID',
     defaultVisible: false,
     sortable: true,
-    field: 'amqSongId',
+    sortBy: (song) => song.amqSongId,
+    display: (song) => song.amqSongId,
+    copy: (song) => String(song.amqSongId),
   },
   {
     id: 'animeLists',
@@ -111,33 +110,39 @@ const SONG_TABLE_COLUMN_CONFIGS = [
     header: 'Season',
     defaultVisible: true,
     sortable: true,
-    field: 'animeVintage',
-    sortKey: (song) => {
+    sortBy: (song) => {
       const parsed = parseVintage(song.animeVintage || '');
       return parsed.year === null ? -1 : parsed.year * 10 + parsed.seasonIndex;
+    },
+    display: (song) => getSeasonYearValue(song),
+    copy: (song) => {
+      const value = getSeasonYearValue(song);
+      return value === '–' ? '' : value;
     },
     tieBreak: (left, right, language) =>
       comparePrimitiveValues(
         getAnimeTitle(left, language),
         getAnimeTitle(right, language),
       ) || compareSongTypes(left.songType, right.songType),
-    display: (song) => getSeasonYearValue(song),
   },
   {
     id: 'animeCategory',
     header: 'Anime Category',
     defaultVisible: false,
     sortable: true,
-    field: 'animeCategory',
+    sortBy: (song) => song.animeCategory,
+    display: (song) => song.animeCategory || '–',
+    copy: (song) => song.animeCategory || '',
   },
   {
     id: 'anime',
     header: 'Anime',
     defaultVisible: true,
     sortable: true,
-    sortKey: getAnimeTitle,
-    tieBreak: (left, right) => compareSongTypes(left.songType, right.songType),
+    sortBy: getAnimeTitle,
     display: getAnimeTitle,
+    copy: getAnimeTitle,
+    tieBreak: (left, right) => compareSongTypes(left.songType, right.songType),
   },
   {
     id: 'broadcast',
@@ -145,10 +150,9 @@ const SONG_TABLE_COLUMN_CONFIGS = [
     defaultVisible: false,
     sortable: true,
     nowrap: true,
-    sortKey: (song) => song.isDub && song.isRebroadcast
-      ? 3
-      : song.isRebroadcast ? 2 : song.isDub ? 1 : 0,
+    sortBy: (song) => song.isDub && song.isRebroadcast ? 3 : song.isRebroadcast ? 2 : song.isDub ? 1 : 0,
     display: (song) => getBroadcastLabel(song),
+    copy: (song) => getBroadcastLabel(song) || '',
   },
   {
     id: 'songType',
@@ -156,7 +160,8 @@ const SONG_TABLE_COLUMN_CONFIGS = [
     defaultVisible: true,
     sortable: true,
     nowrap: true,
-    field: 'songType',
+    display: (song) => song.songType || '–',
+    copy: (song) => song.songType || '',
     compare: (left, right) => compareSongTypes(left.songType, right.songType),
   },
   {
@@ -164,21 +169,27 @@ const SONG_TABLE_COLUMN_CONFIGS = [
     header: 'Performance',
     defaultVisible: false,
     sortable: true,
-    field: 'songCategory',
+    sortBy: (song) => song.songCategory,
+    display: (song) => song.songCategory || '–',
+    copy: (song) => song.songCategory || '',
   },
   {
     id: 'songName',
     header: 'Song Name',
     defaultVisible: true,
     sortable: true,
-    field: 'songName',
+    sortBy: (song) => song.songName,
+    display: (song) => song.songName || '–',
+    copy: (song) => song.songName || '',
   },
   {
     id: 'artist',
     header: 'Artist',
     defaultVisible: true,
     sortable: true,
-    field: 'songArtist',
+    sortBy: (song) => song.songArtist,
+    display: (song) => song.songArtist || '–',
+    copy: (song) => song.songArtist || '',
     tieBreak: compareSongNames,
   },
   {
@@ -186,7 +197,9 @@ const SONG_TABLE_COLUMN_CONFIGS = [
     header: 'Composer',
     defaultVisible: false,
     sortable: true,
-    field: 'songComposer',
+    sortBy: (song) => song.songComposer,
+    display: (song) => song.songComposer || '–',
+    copy: (song) => song.songComposer || '',
     tieBreak: compareSongNames,
   },
   {
@@ -194,7 +207,9 @@ const SONG_TABLE_COLUMN_CONFIGS = [
     header: 'Arranger',
     defaultVisible: false,
     sortable: true,
-    field: 'songArranger',
+    sortBy: (song) => song.songArranger,
+    display: (song) => song.songArranger || '–',
+    copy: (song) => song.songArranger || '',
     tieBreak: compareSongNames,
   },
   {
@@ -202,8 +217,7 @@ const SONG_TABLE_COLUMN_CONFIGS = [
     header: 'Difficulty',
     defaultVisible: false,
     sortable: true,
-    field: 'songDifficulty',
-    sortKey: (song) => Number(song.songDifficulty ?? -1),
+    sortBy: (song) => Number(song.songDifficulty ?? -1),
     display: (song) => song.songDifficulty != null ? `${song.songDifficulty}%` : '–',
     copy: (song) => String(song.songDifficulty ?? ''),
   },
@@ -212,9 +226,9 @@ const SONG_TABLE_COLUMN_CONFIGS = [
     header: 'Length',
     defaultVisible: false,
     sortable: true,
-    field: 'songLength',
-    sortKey: (song) => Number(song.songLength ?? -1),
+    sortBy: (song) => Number(song.songLength ?? -1),
     display: (song) => formatSongLength(song.songLength) || '–',
+    copy: (song) => formatSongLength(song.songLength) || '',
   },
   {
     id: 'songLinks',
@@ -259,8 +273,7 @@ const SONG_TABLE_COLUMN_CONFIGS = [
 
 export type SongColumnId = typeof SONG_TABLE_COLUMN_CONFIGS[number]['id'];
 export type SongColumnDefinition = SongColumnConfig<SongColumnId>;
-export const SONG_TABLE_COLUMNS: readonly SongColumnDefinition[] =
-  SONG_TABLE_COLUMN_CONFIGS;
+export const SONG_TABLE_COLUMNS: readonly SongColumnDefinition[] = SONG_TABLE_COLUMN_CONFIGS;
 
 const SONG_TABLE_COLUMN_BY_ID = new Map<SongColumnId, SongColumnDefinition>(
   SONG_TABLE_COLUMNS.map((column) => [column.id, column]),
@@ -313,7 +326,6 @@ const SEASON_ORDER: Record<string, number> = {
   Spring: 1,
   Summer: 2,
   Fall: 3,
-  Autumn: 3,
 };
 
 export function parseVintage(vintage: string): {
@@ -344,13 +356,7 @@ export function getColumnDisplayValue(
   columnId: SongColumnId,
   language: AnimeTitleLanguage,
 ): string | number {
-  const column = SONG_TABLE_COLUMN_BY_ID.get(columnId);
-  if (column?.display) return column.display(song, language);
-
-  // Display falls back only to the underlying field, never to an opaque sort key.
-  const value = column ? readFieldValue(column, song) : null;
-  if (value === null || value === undefined || value === '') return '–';
-  return typeof value === 'boolean' ? String(value) : value;
+  return SONG_TABLE_COLUMN_BY_ID.get(columnId)?.display?.(song, language) ?? '–';
 }
 
 export function getColumnCopyValue(
@@ -358,12 +364,7 @@ export function getColumnCopyValue(
   columnId: SongColumnId,
   language: AnimeTitleLanguage,
 ): string {
-  const copy = SONG_TABLE_COLUMN_BY_ID.get(columnId)?.copy;
-  if (copy) return copy(song, language);
-
-  const display = getColumnDisplayValue(song, columnId, language);
-  if (display === '–') return '';
-  return String(display);
+  return SONG_TABLE_COLUMN_BY_ID.get(columnId)?.copy?.(song, language) ?? '';
 }
 
 export function comparePrimitiveValues(
@@ -389,13 +390,15 @@ export function compareSongsByColumn(
   const column = SONG_TABLE_COLUMN_BY_ID.get(columnId);
   if (!column?.sortable) return 0;
 
-  // Bespoke comparison wins; otherwise derived keys take precedence over fields.
-  let comparison = column.compare
-    ? column.compare(left, right, language)
-    : comparePrimitiveValues(
-        readSortKey(column, left, language),
-        readSortKey(column, right, language),
-      );
+  let comparison = 0;
+  if (column.compare) {
+    comparison = column.compare(left, right, language);
+  } else if (column.sortBy) {
+    comparison = comparePrimitiveValues(
+      column.sortBy(left, language),
+      column.sortBy(right, language),
+    );
+  }
 
   if (comparison === 0 && column.tieBreak) {
     comparison = column.tieBreak(left, right, language);
@@ -408,21 +411,4 @@ function compareDefaultTieBreaks(left: SongRow, right: SongRow): number {
   return comparePrimitiveValues(left.annId, right.annId)
     || compareSongTypes(left.songType, right.songType)
     || comparePrimitiveValues(left.annSongId, right.annSongId);
-}
-
-function readSortKey(
-  column: SongColumnConfig,
-  song: SongRow,
-  language: AnimeTitleLanguage,
-): SortableSongValue {
-  if (column.sortKey) return column.sortKey(song, language);
-  return readFieldValue(column, song);
-}
-
-function readFieldValue(
-  column: SongColumnConfig,
-  song: SongRow,
-): SortableSongValue {
-  if (!column.field) return null;
-  return song[column.field] as SortableSongValue;
 }
