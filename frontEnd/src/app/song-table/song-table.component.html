@@ -73,7 +73,7 @@
               [style.text-align]="column.centered ? 'center' : null"
               [attr.aria-sort]="sortColumn() === column.id ? (sortAscending() ? 'ascending' : 'descending') : null"
             >
-              @if (column.sortable) {
+              @if (column.sort) {
                 <button
                   type="button"
                   class="table-sort-button"

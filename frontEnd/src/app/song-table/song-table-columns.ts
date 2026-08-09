@@ -19,19 +19,14 @@ type SongColumnConfig<Id extends string = string> = {
   header: string;
   visibilityLabel?: string;
   defaultVisible: boolean;
-  sortable: boolean;
   centered?: boolean;
   nowrap?: boolean;
   // Cell value shown in the table.
   display?: SongColumnReader<string | number>;
   // Clipboard text value.
   copy?: SongColumnReader<string>;
-  // Primary sort key when `compare` is not set; opaque to the UI.
-  sortBy?: SongColumnReader<SortableSongValue>;
-  // Full primary comparator; wins over `sortBy` when both are present.
-  compare?: SongColumnComparator;
-  // Secondary comparison before the shared default tie-break chain.
-  tieBreak?: SongColumnComparator;
+  // Complete column comparison before the shared default tie-break chain.
+  sort?: SongColumnComparator;
 };
 
 export type AnimeListSite = {
@@ -50,15 +45,23 @@ export type SongDistLink = {
 const getAnimeTitle: SongColumnReader<string> = (song, language) =>
   language === 'JP' ? song.animeJPName : song.animeENName;
 
-const compareSongNames: SongColumnComparator = (left, right) =>
+const compareSongType: SongColumnComparator = (left, right) =>
+  compareSongTypes(left.songType, right.songType);
+
+const compareSongName: SongColumnComparator = (left, right) =>
   comparePrimitiveValues(left.songName, right.songName);
+
+const compareAnimeTitle: SongColumnComparator = (left, right, language) =>
+  comparePrimitiveValues(
+    getAnimeTitle(left, language),
+    getAnimeTitle(right, language),
+  );
 
 const SONG_TABLE_COLUMN_CONFIGS = [
   {
     id: 'info',
     header: 'Info',
     defaultVisible: true,
-    sortable: false,
     centered: true,
   },
   {
@@ -66,175 +69,168 @@ const SONG_TABLE_COLUMN_CONFIGS = [
     header: '#',
     visibilityLabel: 'Row Number',
     defaultVisible: false,
-    sortable: false,
     centered: true,
   },
   {
     id: 'annId',
     header: 'ANN ID',
     defaultVisible: true,
-    sortable: true,
     nowrap: true,
-    sortBy: (song) => song.annId,
     display: (song) => song.annId,
     copy: (song) => String(song.annId),
-    tieBreak: (left, right) => compareSongTypes(left.songType, right.songType),
+    sort: sortBy(
+      (song) => song.annId,
+      compareSongType,
+    ),
   },
   {
     id: 'annSongId',
     header: 'ANN Song ID',
     defaultVisible: false,
-    sortable: true,
-    sortBy: (song) => song.annSongId,
     display: (song) => (song.annSongId !== -1 ? song.annSongId : '–'),
     copy: (song) => (song.annSongId !== -1 ? String(song.annSongId) : ''),
+    sort: sortBy((song) => song.annSongId),
   },
   {
     id: 'amqSongId',
     header: 'AMQ Song ID',
     defaultVisible: false,
-    sortable: true,
-    sortBy: (song) => song.amqSongId,
     display: (song) => song.amqSongId,
     copy: (song) => String(song.amqSongId),
+    sort: sortBy((song) => song.amqSongId),
   },
   {
     id: 'animeLists',
     header: 'Anime Lists',
     defaultVisible: false,
-    sortable: false,
     nowrap: true,
   },
   {
     id: 'season',
     header: 'Season',
     defaultVisible: true,
-    sortable: true,
-    sortBy: (song) => {
-      const parsed = parseVintage(song.animeVintage || '');
-      return parsed.year === null ? -1 : parsed.year * 10 + parsed.seasonIndex;
-    },
     display: (song) => getSeasonYearValue(song),
     copy: (song) => {
       const value = getSeasonYearValue(song);
       return value === '–' ? '' : value;
     },
-    tieBreak: (left, right, language) =>
-      comparePrimitiveValues(
-        getAnimeTitle(left, language),
-        getAnimeTitle(right, language),
-      ) || compareSongTypes(left.songType, right.songType),
+    sort: sortBy(
+      (song) => {
+        const parsed = parseVintage(song.animeVintage || '');
+        return parsed.year === null ? -1 : parsed.year * 10 + parsed.seasonIndex;
+      },
+      compareAnimeTitle,
+      compareSongType,
+    ),
   },
   {
-    id: 'animeCategory',
-    header: 'Anime Category',
+    id: 'animeType',
+    header: 'Anime Type',
     defaultVisible: false,
-    sortable: true,
-    sortBy: (song) => song.animeCategory,
-    display: (song) => song.animeCategory || '–',
-    copy: (song) => song.animeCategory || '',
+    display: (song) => song.animeType || '–',
+    copy: (song) => song.animeType || '',
+    sort: sortBy((song) => song.animeType),
   },
   {
     id: 'anime',
     header: 'Anime',
     defaultVisible: true,
-    sortable: true,
-    sortBy: getAnimeTitle,
     display: getAnimeTitle,
     copy: getAnimeTitle,
-    tieBreak: (left, right) => compareSongTypes(left.songType, right.songType),
+    sort: sortBy(
+      getAnimeTitle,
+      compareSongType,
+    ),
   },
   {
     id: 'broadcast',
     header: 'Broadcast',
     defaultVisible: false,
-    sortable: true,
     nowrap: true,
-    sortBy: (song) => song.isDub && song.isRebroadcast ? 3 : song.isRebroadcast ? 2 : song.isDub ? 1 : 0,
     display: (song) => getBroadcastLabel(song),
     copy: (song) => getBroadcastLabel(song) || '',
+    sort: sortBy((song) =>
+      song.isDub && song.isRebroadcast ? 3 : song.isRebroadcast ? 2 : song.isDub ? 1 : 0,
+    ),
   },
   {
     id: 'songType',
     header: 'Song Type',
     defaultVisible: true,
-    sortable: true,
     nowrap: true,
     display: (song) => song.songType || '–',
     copy: (song) => song.songType || '',
-    compare: (left, right) => compareSongTypes(left.songType, right.songType),
+    sort: compareSongType,
   },
   {
     id: 'performance',
     header: 'Performance',
     defaultVisible: false,
-    sortable: true,
-    sortBy: (song) => song.songCategory,
     display: (song) => song.songCategory || '–',
     copy: (song) => song.songCategory || '',
+    sort: sortBy((song) => song.songCategory),
   },
   {
     id: 'songName',
     header: 'Song Name',
     defaultVisible: true,
-    sortable: true,
-    sortBy: (song) => song.songName,
     display: (song) => song.songName || '–',
     copy: (song) => song.songName || '',
+    sort: sortBy((song) => song.songName),
   },
   {
     id: 'artist',
     header: 'Artist',
     defaultVisible: true,
-    sortable: true,
-    sortBy: (song) => song.songArtist,
     display: (song) => song.songArtist || '–',
     copy: (song) => song.songArtist || '',
-    tieBreak: compareSongNames,
+    sort: sortBy(
+      (song) => song.songArtist,
+      compareSongName,
+    ),
   },
   {
     id: 'composer',
     header: 'Composer',
     defaultVisible: false,
-    sortable: true,
-    sortBy: (song) => song.songComposer,
     display: (song) => song.songComposer || '–',
     copy: (song) => song.songComposer || '',
-    tieBreak: compareSongNames,
+    sort: sortBy(
+      (song) => song.songComposer,
+      compareSongName,
+    ),
   },
   {
     id: 'arranger',
     header: 'Arranger',
     defaultVisible: false,
-    sortable: true,
-    sortBy: (song) => song.songArranger,
     display: (song) => song.songArranger || '–',
     copy: (song) => song.songArranger || '',
-    tieBreak: compareSongNames,
+    sort: sortBy(
+      (song) => song.songArranger,
+      compareSongName,
+    ),
   },
   {
     id: 'difficulty',
     header: 'Difficulty',
     defaultVisible: false,
-    sortable: true,
-    sortBy: (song) => Number(song.songDifficulty ?? -1),
     display: (song) => song.songDifficulty != null ? `${song.songDifficulty}%` : '–',
     copy: (song) => String(song.songDifficulty ?? ''),
+    sort: sortBy((song) => Number(song.songDifficulty ?? -1)),
   },
   {
     id: 'length',
     header: 'Length',
     defaultVisible: false,
-    sortable: true,
-    sortBy: (song) => Number(song.songLength ?? -1),
     display: (song) => formatSongLength(song.songLength) || '–',
     copy: (song) => formatSongLength(song.songLength) || '',
+    sort: sortBy((song) => Number(song.songLength ?? -1)),
   },
   {
     id: 'songLinks',
     header: 'Song Links',
     defaultVisible: false,
-    sortable: false,
     nowrap: true,
   },
   {
@@ -242,7 +238,6 @@ const SONG_TABLE_COLUMN_CONFIGS = [
     header: 'Play',
     visibilityLabel: 'Play Audio',
     defaultVisible: true,
-    sortable: false,
     centered: true,
   },
   {
@@ -250,7 +245,6 @@ const SONG_TABLE_COLUMN_CONFIGS = [
     header: 'Add',
     visibilityLabel: 'Add to Playlist',
     defaultVisible: false,
-    sortable: false,
     centered: true,
   },
   {
@@ -258,7 +252,6 @@ const SONG_TABLE_COLUMN_CONFIGS = [
     header: 'Move',
     visibilityLabel: 'Move Row',
     defaultVisible: false,
-    sortable: false,
     centered: true,
   },
   {
@@ -266,7 +259,6 @@ const SONG_TABLE_COLUMN_CONFIGS = [
     header: 'Del',
     visibilityLabel: 'Delete Row',
     defaultVisible: true,
-    sortable: false,
     centered: true,
   },
 ] as const satisfies readonly SongColumnConfig[];
@@ -381,6 +373,25 @@ export function comparePrimitiveValues(
   });
 }
 
+function sortBy(
+  read: SongColumnReader<SortableSongValue>,
+  ...tieBreaks: SongColumnComparator[]
+): SongColumnComparator {
+  return (left, right, language) => {
+    let comparison = comparePrimitiveValues(
+      read(left, language),
+      read(right, language),
+    );
+
+    for (const tieBreak of tieBreaks) {
+      if (comparison !== 0) break;
+      comparison = tieBreak(left, right, language);
+    }
+
+    return comparison;
+  };
+}
+
 export function compareSongsByColumn(
   left: SongRow,
   right: SongRow,
@@ -388,22 +399,10 @@ export function compareSongsByColumn(
   language: AnimeTitleLanguage,
 ): number {
   const column = SONG_TABLE_COLUMN_BY_ID.get(columnId);
-  if (!column?.sortable) return 0;
+  if (!column?.sort) return 0;
 
-  let comparison = 0;
-  if (column.compare) {
-    comparison = column.compare(left, right, language);
-  } else if (column.sortBy) {
-    comparison = comparePrimitiveValues(
-      column.sortBy(left, language),
-      column.sortBy(right, language),
-    );
-  }
-
-  if (comparison === 0 && column.tieBreak) {
-    comparison = column.tieBreak(left, right, language);
-  }
-  return comparison || compareDefaultTieBreaks(left, right);
+  return column.sort(left, right, language)
+    || compareDefaultTieBreaks(left, right);
 }
 
 function compareDefaultTieBreaks(left: SongRow, right: SongRow): number {

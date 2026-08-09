@@ -75,7 +75,7 @@ export class SongTableController {
   sort(columnId: SongColumnId): boolean {
     const songs = this.songs();
     const column = this.availableColumns.find((candidate) => candidate.id === columnId);
-    if (!songs || !column?.sortable) return false;
+    if (!songs || !column?.sort) return false;
 
     const ascending = this.sortColumn() === columnId ? !this.sortAscending() : true;
     const direction = ascending ? 1 : -1;
