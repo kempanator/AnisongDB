@@ -1,6 +1,7 @@
 import type { SongRow } from '../core/models/song';
-import type { AnimeTitleLanguage } from '../core/services/user-preferences.service';
-import { collectPersonIds, formatSongLength, getBroadcastLabel } from './song-table.utils';
+import type { AnimeTitleLanguage } from '../core/models/user-preferences';
+import { formatSongLength, getBroadcastMetadata, parseSongType } from '../core/utils/song-metadata';
+import { collectPersonIds } from './song-credits';
 
 export type StatBreakdownEntry = {
   label: string;
@@ -9,7 +10,7 @@ export type StatBreakdownEntry = {
 };
 
 export type StatRankingEntry = {
-  key: string;
+  key: number;
   label: string;
   count: number;
 };
@@ -79,16 +80,15 @@ export function computeTableStats(
   const performanceCounts: Record<string, number> = {};
   const lengths: number[] = [];
   const difficulties: number[] = [];
-  const animeCounts = new Map<string, StatRankingEntry>();
-  const artistCounts = new Map<string, StatRankingEntry>();
+  const animeCounts = new Map<number, StatRankingEntry>();
+  const artistCounts = new Map<number, StatRankingEntry>();
 
   for (const song of songs) {
     if (song.annId != null) animeIds.add(song.annId);
     for (const artistId of collectPersonIds(song.artists)) artistIds.add(artistId);
 
-    const animeKey = String(song.annId);
     const animeLabel = animeTitleLanguage === 'JP' ? song.animeJPName : song.animeENName;
-    incrementRanking(animeCounts, animeKey, animeLabel || '(none)');
+    incrementRanking(animeCounts, song.annId, animeLabel || '(none)');
 
     const artistsInSong = new Set<number>();
     for (const artist of song.artists ?? []) {
@@ -96,14 +96,14 @@ export function computeTableStats(
       artistsInSong.add(artist.id);
       incrementRanking(
         artistCounts,
-        String(artist.id),
+        artist.id,
         artist.names?.find((name) => name.trim())?.trim() || '(none)',
       );
     }
 
     incrementCount(animeTypeCounts, song.animeType);
-    incrementCount(songTypeCounts, shortenSongType(song.songType));
-    incrementCount(broadcastCounts, getBroadcastLabel(song));
+    incrementCount(songTypeCounts, parseSongType(song.songType).shortLabel);
+    incrementCount(broadcastCounts, getBroadcastMetadata(song).label);
     incrementCount(performanceCounts, song.songCategory);
 
     const length = Number(song.songLength);
@@ -138,22 +138,14 @@ function average(values: readonly number[]): number {
   return Number((values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(1));
 }
 
-function shortenSongType(songType: string | null | undefined): string {
-  if (!songType?.trim()) return '(none)';
-  if (songType.startsWith('Opening')) return 'OP';
-  if (songType.startsWith('Ending')) return 'ED';
-  if (songType.startsWith('Insert')) return 'IN';
-  return songType.trim();
-}
-
 function incrementCount(counts: Record<string, number>, value: string | null | undefined): void {
   const label = value?.trim() || '(none)';
   counts[label] = (counts[label] ?? 0) + 1;
 }
 
 function incrementRanking(
-  rankings: Map<string, StatRankingEntry>,
-  key: string,
+  rankings: Map<number, StatRankingEntry>,
+  key: number,
   label: string,
 ): void {
   const existing = rankings.get(key);
@@ -182,7 +174,7 @@ function buildBreakdown(
   });
 }
 
-function topRankings(rankings: Map<string, StatRankingEntry>): StatRankingEntry[] {
+function topRankings(rankings: Map<number, StatRankingEntry>): StatRankingEntry[] {
   return [...rankings.values()]
     .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label))
     .slice(0, 10);

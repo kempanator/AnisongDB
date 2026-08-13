@@ -11,10 +11,10 @@
           <select
             id="playlist-picker-select"
             class="app-select playlist-picker-select"
-            [value]="selectedPlaylistId() ?? ''"
-            (change)="selectPlaylist($any($event.target).value)"
+            [value]="playlistService.selectedPlaylistId() ?? ''"
+            (change)="playlistService.selectPlaylist($any($event.target).value)"
           >
-            @for (playlist of sortedPlaylists(); track playlist.id) {
+            @for (playlist of playlistService.sortedPlaylists(); track playlist.id) {
               <option [value]="playlist.id">{{ playlist.name }} ({{ formatSongCount(playlist.annSongIds.length) }})</option>
             }
           </select>
@@ -37,8 +37,8 @@
         <label class="app-checkbox playlist-picker-auto-add">
           <input
             type="checkbox"
-            [checked]="autoAddToPlaylist()"
-            (change)="setAutoAddToPlaylist($any($event.target).checked)"
+            [checked]="playlistService.autoAddEnabled()"
+            (change)="playlistService.setAutoAdd($any($event.target).checked)"
           />
           Auto add songs to this playlist (skip this menu)
         </label>

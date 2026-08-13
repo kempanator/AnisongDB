@@ -1,4 +1,4 @@
-@if (info(); as info) {
+@if (song(); as currentSong) {
   <app-modal-shell titleId="song-modal-song-name" dialogId="song-info-modal" closeButtonId="song-modal-close"
     closeLabel="Close song info" size="wide" (closed)="close()">
     <div modal-title class="song-modal-title-group">
@@ -6,17 +6,17 @@
         id="song-modal-song-name"
         class="app-copyable song-modal-title"
         title="Copy to clipboard"
-        (click)="onCopy($event, info.songName)"
+        (click)="onCopy($event, currentSong.songName)"
       >
-        {{ info.songName }}
+        {{ currentSong.songName }}
       </h2>
       <p
         id="song-modal-artist"
         class="app-copyable song-modal-artist"
         title="Copy to clipboard"
-        (click)="onCopy($event, info.artist)"
+        (click)="onCopy($event, currentSong.songArtist)"
       >
-        by {{ info.artist || 'Unknown Artist' }}
+        by {{ currentSong.songArtist || 'Unknown Artist' }}
       </p>
     </div>
     <span modal-header-actions id="song-modal-row-number" class="song-modal-row-number">
@@ -29,48 +29,17 @@
             <div class="song-modal-panel-header">
               <h3>Anime</h3>
               <div class="song-modal-site-links">
-                <a [href]="info.annUrl" target="_blank" rel="noopener noreferrer" title="Anime News Network">
-                  <img src="assets/img/ANN_Logo.png" alt="Anime News Network" />
-                </a>
-                @if (info.malId) {
-                  <a
-                    [href]="'https://myanimelist.net/anime/' + info.malId"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title="MyAnimeList"
-                  >
-                    <img src="assets/img/MyAnimeList_Logo.png" alt="MyAnimeList" />
-                  </a>
-                }
-                @if (info.anidbId) {
-                  <a
-                    [href]="'https://anidb.net/anime/' + info.anidbId"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title="AniDB"
-                  >
-                    <img src="assets/img/AniDB_Logo.png" alt="AniDB" />
-                  </a>
-                }
-                @if (info.anilistId) {
-                  <a
-                    [href]="'https://anilist.co/anime/' + info.anilistId"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title="AniList"
-                  >
-                    <img src="assets/img/AniList_logo.png" alt="AniList" />
-                  </a>
-                }
-                @if (info.kitsuId) {
-                  <a
-                    [href]="'https://kitsu.app/anime/' + info.kitsuId"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title="Kitsu"
-                  >
-                    <img src="assets/img/Kitsu_Logo.png" alt="Kitsu" />
-                  </a>
+                @for (site of animeListSites; track site.alt) {
+                  @if (site.getUrl(currentSong); as siteUrl) {
+                    <a
+                      [href]="siteUrl"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      [title]="site.alt"
+                    >
+                      <img [src]="site.img" [alt]="site.alt" />
+                    </a>
+                  }
                 }
               </div>
             </div>
@@ -81,9 +50,9 @@
                   id="song-modal-anime-english"
                   class="app-copyable"
                   title="Copy to clipboard"
-                  (click)="onCopy($event, info.animeENName)"
+                  (click)="onCopy($event, currentSong.animeENName)"
                 >
-                  {{ info.animeENName || '–' }}
+                  {{ currentSong.animeENName || '–' }}
                 </dd>
               </div>
               <div>
@@ -92,21 +61,21 @@
                   id="song-modal-anime-japanese"
                   class="app-copyable"
                   title="Copy to clipboard"
-                  (click)="onCopy($event, info.animeJPName)"
+                  (click)="onCopy($event, currentSong.animeJPName)"
                 >
-                  {{ info.animeJPName || '–' }}
+                  {{ currentSong.animeJPName || '–' }}
                 </dd>
               </div>
               <div>
                 <dt>Season</dt>
                 <dd class="song-modal-fact-value">
-                  @if (info.vintage) {
+                  @if (currentSong.animeVintage) {
                     <button
                       type="button"
                       class="app-icon-button app-icon-button--inline"
                       title="Search this season"
                       aria-label="Search this season"
-                      (click)="searchSeason(info.vintage, $event)"
+                      (click)="searchSeason(currentSong.animeVintage, $event)"
                     >
                       <i class="fa fa-search" aria-hidden="true"></i>
                     </button>
@@ -115,9 +84,9 @@
                     id="song-modal-anime-season"
                     class="app-copyable"
                     title="Copy to clipboard"
-                    (click)="onCopy($event, info.vintage)"
+                    (click)="onCopy($event, currentSong.animeVintage)"
                   >
-                    {{ info.vintage || '–' }}
+                    {{ currentSong.animeVintage || '–' }}
                   </span>
                 </dd>
               </div>
@@ -127,21 +96,21 @@
                   id="song-modal-anime-type"
                   class="app-copyable"
                   title="Copy to clipboard"
-                  (click)="onCopy($event, info.animeType)"
+                  (click)="onCopy($event, currentSong.animeType)"
                 >
-                  {{ info.animeType || '–' }}
+                  {{ currentSong.animeType || '–' }}
                 </dd>
               </div>
               <div>
                 <dt>ANN ID</dt>
                 <dd class="song-modal-fact-value">
-                  @if (info.annId) {
+                  @if (currentSong.annId) {
                     <button
                       type="button"
                       class="app-icon-button app-icon-button--inline"
                       title="Search this ANN ID"
                       aria-label="Search this ANN ID"
-                      (click)="searchAnnId(info.annId, $event)"
+                      (click)="searchAnnId(currentSong.annId, $event)"
                     >
                       <i class="fa fa-search" aria-hidden="true"></i>
                     </button>
@@ -150,17 +119,17 @@
                     id="song-modal-anime-ann-id"
                     class="app-copyable"
                     title="Copy to clipboard"
-                    (click)="onCopy($event, info.annId)"
+                    (click)="onCopy($event, currentSong.annId)"
                   >
-                    {{ info.annId }}
+                    {{ currentSong.annId }}
                   </span>
                 </dd>
               </div>
-              @if (info.animeAltNames.length > 0) {
+              @if (currentSong.animeAltName.length > 0) {
                 <div>
                   <dt>Alt Title</dt>
                   <dd id="song-modal-anime-alt-title">
-                    @for (altName of info.animeAltNames; track altName; let last = $last) {
+                    @for (altName of currentSong.animeAltName; track altName; let last = $last) {
                       <span
                         class="app-copyable"
                         title="Copy to clipboard"
@@ -188,9 +157,9 @@
                   id="song-modal-song-type"
                   class="app-copyable"
                   title="Copy to clipboard"
-                  (click)="onCopy($event, info.songType)"
+                  (click)="onCopy($event, currentSong.songType)"
                 >
-                  {{ info.songType || '–' }}
+                  {{ currentSong.songType || '–' }}
                 </dd>
               </div>
               <div>
@@ -199,9 +168,9 @@
                   id="song-modal-song-difficulty"
                   class="app-copyable"
                   title="Copy to clipboard"
-                  (click)="onCopy($event, info.difficulty)"
+                  (click)="onCopy($event, currentSong.songDifficulty)"
                 >
-                  {{ info.difficulty ? info.difficulty + '%' : '–' }}
+                  {{ currentSong.songDifficulty ? currentSong.songDifficulty + '%' : '–' }}
                 </dd>
               </div>
               <div>
@@ -210,9 +179,9 @@
                   id="song-modal-song-broadcast"
                   class="app-copyable"
                   title="Copy to clipboard"
-                  (click)="onCopy($event, info.broadcast)"
+                  (click)="onCopy($event, broadcast())"
                 >
-                  {{ info.broadcast || '–' }}
+                  {{ broadcast() }}
                 </dd>
               </div>
               <div>
@@ -221,9 +190,9 @@
                   id="song-modal-song-performance"
                   class="app-copyable"
                   title="Copy to clipboard"
-                  (click)="onCopy($event, info.performance)"
+                  (click)="onCopy($event, currentSong.songCategory)"
                 >
-                  {{ info.performance || '–' }}
+                  {{ currentSong.songCategory || '–' }}
                 </dd>
               </div>
               <div>
@@ -232,22 +201,22 @@
                   id="song-modal-ann-song-id"
                   class="app-copyable"
                   title="Copy to clipboard"
-                  (click)="onCopy($event, info.annSongId)"
+                  (click)="onCopy($event, annSongId())"
                 >
-                  {{ info.annSongId || '–' }}
+                  {{ annSongId() || '–' }}
                 </dd>
               </div>
               @if (showAmqSongId()) {
                 <div>
                   <dt>AMQ Song ID</dt>
                   <dd class="song-modal-fact-value">
-                    @if (info.amqSongId) {
+                    @if (currentSong.amqSongId) {
                       <button
                         type="button"
                         class="app-icon-button app-icon-button--inline"
                         title="Search this AMQ song ID"
                         aria-label="Search this AMQ song ID"
-                        (click)="searchAmqSongId(info.amqSongId, $event)"
+                        (click)="searchAmqSongId(currentSong.amqSongId, $event)"
                       >
                         <i class="fa fa-search" aria-hidden="true"></i>
                       </button>
@@ -256,9 +225,9 @@
                       id="song-modal-amq-song-id"
                       class="app-copyable"
                       title="Copy to clipboard"
-                      (click)="onCopy($event, info.amqSongId)"
+                      (click)="onCopy($event, currentSong.amqSongId)"
                     >
-                      {{ info.amqSongId || '–' }}
+                      {{ currentSong.amqSongId || '–' }}
                     </span>
                   </dd>
                 </div>
@@ -269,49 +238,52 @@
                   id="song-modal-song-length"
                   class="app-copyable"
                   title="Copy to clipboard"
-                  (click)="onCopy($event, info.lengthFormatted)"
+                  (click)="onCopy($event, formattedLength())"
                 >
-                  {{ info.lengthFormatted || '–' }}
+                  {{ formattedLength() || '–' }}
                 </dd>
               </div>
             </dl>
           </section>
         </div>
 
-        @if (info.distLinks.length > 0) {
+        @if (currentSong.HQ || currentSong.MQ || currentSong.audio) {
           <section class="song-modal-panel">
             <h3>Links</h3>
             <div class="song-modal-links-list">
-              @for (link of info.distLinks; track link.kind) {
-                <div class="song-modal-link">
-                  <span class="song-modal-link-kind">{{ link.kind }}</span>
-                  <a
-                    class="song-modal-link-file"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    [href]="link.url"
-                    [title]="link.fileName"
-                  >
-                    {{ link.fileName }}
-                  </a>
-                  <button
-                    type="button"
-                    class="app-icon-button song-modal-link-copy"
-                    [id]="'song-modal-link-copy-' + link.kind"
-                    title="Copy to clipboard"
-                    (click)="onCopy($event, link.url)"
-                  >
-                    <i class="fa fa-clone" aria-hidden="true"></i>
-                  </button>
-                </div>
+              @for (link of songDistLinks; track link.field) {
+                @if (currentSong[link.field]; as fileName) {
+                  @let url = preferences.getDistUrl(fileName);
+                  <div class="song-modal-link">
+                    <span class="song-modal-link-kind">{{ link.infoLabel }}</span>
+                    <a
+                      class="song-modal-link-file"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      [href]="url"
+                      [title]="fileName"
+                    >
+                      {{ fileName }}
+                    </a>
+                    <button
+                      type="button"
+                      class="app-icon-button song-modal-link-copy"
+                      [id]="'song-modal-link-copy-' + link.infoLabel"
+                      title="Copy to clipboard"
+                      (click)="onCopy($event, url)"
+                    >
+                      <i class="fa fa-clone" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                }
               }
             </div>
           </section>
         }
 
-        @if (info.creditSections.length > 0) {
+        @if (creditSections().length > 0) {
           <section class="song-modal-panel">
-            @for (section of info.creditSections; track section.title) {
+            @for (section of creditSections(); track section.title) {
               <h3>{{ section.title }}</h3>
               <div class="song-modal-credit-grid" [style.--song-modal-grid-columns]="gridColumns(section.people.length)">
                 @for (person of section.people; track $index) {
@@ -416,10 +388,5 @@
           </section>
         }
       </div>
-      @if (clipboardPopup(); as popup) {
-        <div class="app-clipboard-popup" [style.left]="popup.left" [style.top]="popup.top">
-          Copied
-        </div>
-      }
   </app-modal-shell>
 }

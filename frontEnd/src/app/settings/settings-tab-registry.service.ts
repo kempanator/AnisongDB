@@ -1,4 +1,15 @@
-import { computed, Injectable, signal } from '@angular/core';
+import {
+  afterRenderEffect,
+  computed,
+  Directive,
+  ElementRef,
+  inject,
+  Injectable,
+  input,
+  OnDestroy,
+  signal,
+  untracked,
+} from '@angular/core';
 
 export type SettingsTabCleanup = () => void;
 export type SettingsTabRender = (panel: HTMLElement) => void | SettingsTabCleanup;
@@ -22,10 +33,11 @@ export class SettingsTabRegistryService {
   readonly tabs = computed(() => [...this.builtInTabs, ...this.extensionTabs()]);
   private readonly activeTabState = signal<string>('settings');
   readonly activeTab = this.activeTabState.asReadonly();
-  private readonly mountedPanels = new Map<
-    HTMLElement,
-    { definition: SettingsTabDefinition; cleanup?: SettingsTabCleanup }
-  >();
+  private mountedPanel: {
+    element: HTMLElement;
+    definition: SettingsTabDefinition;
+    cleanup?: SettingsTabCleanup;
+  } | null = null;
 
   setActiveTab(id: string): void {
     if (this.tabs().some((tab) => tab.id === id)) {
@@ -53,17 +65,18 @@ export class SettingsTabRegistryService {
   }
 
   mountTabPanel(id: string, panel: HTMLElement): void {
-    this.unmountTabPanel(panel);
+    this.unmountCurrentPanel();
 
     const definition = this.registeredTabs().find((tab) => tab.id === id);
     if (!definition) return;
 
     try {
       const cleanup = definition.render(panel);
-      this.mountedPanels.set(panel, {
+      this.mountedPanel = {
+        element: panel,
         definition,
         cleanup: typeof cleanup === 'function' ? cleanup : undefined,
-      });
+      };
     } catch (error) {
       panel.replaceChildren();
       console.error(`Could not render settings tab "${id}".`, error);
@@ -71,7 +84,12 @@ export class SettingsTabRegistryService {
   }
 
   unmountTabPanel(panel: HTMLElement): void {
-    const mountedPanel = this.mountedPanels.get(panel);
+    if (this.mountedPanel?.element !== panel) return;
+    this.unmountCurrentPanel();
+  }
+
+  private unmountCurrentPanel(): void {
+    const mountedPanel = this.mountedPanel;
     if (!mountedPanel) return;
 
     try {
@@ -79,8 +97,8 @@ export class SettingsTabRegistryService {
     } catch (error) {
       console.error(`Could not clean up settings tab "${mountedPanel.definition.id}".`, error);
     }
-    this.mountedPanels.delete(panel);
-    panel.replaceChildren();
+    mountedPanel.element.replaceChildren();
+    this.mountedPanel = null;
   }
 
   private unregisterTab(definition: SettingsTabDefinition): void {
@@ -88,8 +106,8 @@ export class SettingsTabRegistryService {
 
     this.registeredTabs.update((tabs) => tabs.filter((tab) => tab !== definition));
 
-    for (const [panel, mountedPanel] of this.mountedPanels) {
-      if (mountedPanel.definition === definition) this.unmountTabPanel(panel);
+    if (this.mountedPanel?.definition === definition) {
+      this.unmountCurrentPanel();
     }
 
     if (this.activeTab() === definition.id) {
@@ -110,5 +128,28 @@ export class SettingsTabRegistryService {
     if (typeof definition.render !== 'function') {
       throw new TypeError('Settings tab render must be a function.');
     }
+  }
+}
+
+@Directive({
+  selector: '[settingsTabPanel]',
+})
+export class SettingsTabPanelDirective implements OnDestroy {
+  readonly settingsTabPanel = input.required<string>();
+
+  private readonly elementRef = inject(ElementRef<HTMLElement>);
+  private readonly tabRegistry = inject(SettingsTabRegistryService);
+
+  constructor() {
+    afterRenderEffect(() => {
+      const tabId = this.settingsTabPanel();
+      untracked(() => {
+        this.tabRegistry.mountTabPanel(tabId, this.elementRef.nativeElement);
+      });
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.tabRegistry.unmountTabPanel(this.elementRef.nativeElement);
   }
 }

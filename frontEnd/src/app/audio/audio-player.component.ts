@@ -1,10 +1,8 @@
 import { afterNextRender, ChangeDetectionStrategy, Component, computed, CUSTOM_ELEMENTS_SCHEMA, effect, ElementRef, inject, OnDestroy, viewChild } from '@angular/core';
 import { LocalMediaStorage, MediaPlayer } from 'vidstack';
-import { AudioPlaybackCommand, AudioPlaybackService } from './core/services/audio-playback.service';
-import { DistServerService } from './core/services/dist-server.service';
-import { getSongPlaybackSource } from './core/models/song';
-import { ThemeService } from './core/services/theme.service';
-import { UserPreferencesService } from './core/services/user-preferences.service';
+import { getSongPlaybackSource } from '../core/models/song';
+import { UserPreferencesService } from '../core/services/user-preferences.service';
+import { AudioPlaybackCommand, AudioPlaybackService } from './audio-playback.service';
 
 type ConfigurableMediaPlayer = MediaPlayer & {
   crossOrigin: boolean;
@@ -25,7 +23,7 @@ class SessionMediaStorage extends LocalMediaStorage {
     <div class="audio-player" [title]="playerTitle()">
       <media-player #player [storage]="storage">
         <media-provider></media-provider>
-        <media-audio-layout [attr.color-scheme]="themeService.theme() === 'light' ? 'light' : 'dark'"></media-audio-layout>
+        <media-audio-layout [attr.color-scheme]="preferences.preferences().theme === 'light' ? 'light' : 'dark'"></media-audio-layout>
       </media-player>
     </div>
   `,
@@ -39,11 +37,9 @@ class SessionMediaStorage extends LocalMediaStorage {
   `],
 })
 export class AudioPlayerComponent implements OnDestroy {
-  readonly themeService = inject(ThemeService);
   readonly playback = inject(AudioPlaybackService);
   readonly storage = new SessionMediaStorage();
-  private readonly distServer = inject(DistServerService);
-  private readonly preferences = inject(UserPreferencesService);
+  readonly preferences = inject(UserPreferencesService);
   private readonly playerRef = viewChild<ElementRef<MediaPlayer>>('player');
   private requestAbort?: AbortController;
   private player?: MediaPlayer;
@@ -117,7 +113,7 @@ export class AudioPlayerComponent implements OnDestroy {
 
       const ready = this.waitForCanPlay(player, signal);
       this.loadedAnnSongId = null;
-      (player as ConfigurableMediaPlayer).src = this.distServer.getDistUrl(source);
+      (player as ConfigurableMediaPlayer).src = this.preferences.getDistUrl(source);
       player.title = `${command.song.songName} by ${command.song.songArtist}`;
       await ready;
       if (signal.aborted) return;

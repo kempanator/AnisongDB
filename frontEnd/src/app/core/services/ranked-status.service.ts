@@ -8,19 +8,38 @@ export interface RankedStatus {
   remainingSeconds: number;
 }
 
+export const RANKED_REGIONS = [
+  {
+    region: 'Central',
+    timeZone: 'Europe/Copenhagen',
+    timeZoneLabel: 'CET/CEST',
+  },
+  {
+    region: 'Western',
+    timeZone: 'America/Chicago',
+    timeZoneLabel: 'CDT/CST',
+  },
+  {
+    region: 'Eastern',
+    timeZone: 'Asia/Tokyo',
+    timeZoneLabel: 'JST',
+  },
+] as const;
+
+const RANKED_START_SECONDS = (20 * 60 + 30) * 60;
+const RANKED_END_SECONDS = (21 * 60 + 23) * 60;
+
+export const RANKED_SCHEDULE_LABEL = [
+  `${formatClockTime(RANKED_START_SECONDS)}–${formatClockTime(RANKED_END_SECONDS)}`,
+  `(${Math.floor((RANKED_END_SECONDS - RANKED_START_SECONDS) / 60)} minutes)`,
+].join(' ');
+
 @Injectable({ providedIn: 'root' })
 export class RankedStatusService {
-  private static readonly START_SECONDS = (20 * 60 + 30) * 60;
-  private static readonly END_SECONDS = (21 * 60 + 23) * 60;
-
   private static readonly REGIONS: ReadonlyArray<{
     region: string;
     localSeconds: (date: Date) => number;
-  }> = [
-    { timeZone: 'Europe/Copenhagen', region: 'Central' },
-    { timeZone: 'America/Chicago', region: 'Western' },
-    { timeZone: 'Asia/Tokyo', region: 'Eastern' },
-  ].map(({ timeZone, region }) => {
+  }> = RANKED_REGIONS.map(({ timeZone, region }) => {
     const formatter = new Intl.DateTimeFormat('en-US', {
       timeZone,
       hourCycle: 'h23',
@@ -57,13 +76,13 @@ export class RankedStatusService {
     for (const { region, localSeconds } of RankedStatusService.REGIONS) {
       const localSecond = localSeconds(date);
       if (
-        localSecond >= RankedStatusService.START_SECONDS
-        && localSecond < RankedStatusService.END_SECONDS
+        localSecond >= RANKED_START_SECONDS
+        && localSecond < RANKED_END_SECONDS
       ) {
         return {
           active: true,
           region,
-          remainingSeconds: RankedStatusService.END_SECONDS - localSecond,
+          remainingSeconds: RANKED_END_SECONDS - localSecond,
         };
       }
     }
@@ -77,4 +96,12 @@ export class RankedStatusService {
     const seconds = status.remainingSeconds % 60;
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   }
+}
+
+function formatClockTime(seconds: number): string {
+  const hour = Math.floor(seconds / 3600);
+  const minute = Math.floor((seconds % 3600) / 60);
+  const period = hour >= 12 ? 'PM' : 'AM';
+  const displayHour = hour % 12 || 12;
+  return `${displayHour}:${minute.toString().padStart(2, '0')} ${period}`;
 }

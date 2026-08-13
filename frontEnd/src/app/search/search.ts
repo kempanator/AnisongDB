@@ -40,7 +40,6 @@ export interface SongSearchFilters {
 }
 
 export interface SongSearchBody {
-  type?: 'initial_random_songs';
   n?: number;
   season?: string;
   ann_ids?: SongId[];
@@ -66,7 +65,7 @@ type SearchBodyWith<TKey extends keyof SongSearchBody> = SongSearchBody
 
 /** Identifies the search operation independently from its API payload. */
 export type SearchCommand =
-  | { kind: 'initial-random'; body: SearchBodyWith<'type'> }
+  | { kind: 'initial-random' }
   | { kind: 'random'; body: SearchBodyWith<'n'> }
   | { kind: 'general'; body: SongSearchBody }
   | { kind: 'season'; body: SearchBodyWith<'season'> }

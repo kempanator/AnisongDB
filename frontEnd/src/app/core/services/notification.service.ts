@@ -1,5 +1,10 @@
 import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 
+export type NotificationState = {
+  message: string;
+  phase: 'visible' | 'exiting';
+};
+
 @Injectable({ providedIn: 'root' })
 export class NotificationService {
   private readonly destroyRef = inject(DestroyRef);
@@ -8,9 +13,8 @@ export class NotificationService {
   private visibleTimeout?: ReturnType<typeof setTimeout>;
   private fadeTimeout?: ReturnType<typeof setTimeout>;
 
-  readonly message = signal('');
-  readonly visible = signal(false);
-  readonly exiting = signal(false);
+  private readonly stateSignal = signal<NotificationState | null>(null);
+  readonly state = this.stateSignal.asReadonly();
 
   constructor() {
     this.destroyRef.onDestroy(() => this.clearTimers());
@@ -18,25 +22,24 @@ export class NotificationService {
 
   show(message: string): void {
     this.clearTimers();
-    this.message.set(message);
-    this.exiting.set(false);
-    this.visible.set(true);
+    this.stateSignal.set({ message, phase: 'visible' });
 
     this.visibleTimeout = setTimeout(() => {
-      this.exiting.set(true);
+      this.visibleTimeout = undefined;
+      this.stateSignal.set({ message, phase: 'exiting' });
       this.fadeTimeout = setTimeout(() => {
-        this.visible.set(false);
-        this.exiting.set(false);
+        this.fadeTimeout = undefined;
+        this.stateSignal.set(null);
       }, this.fadeMs);
     }, this.visibleMs);
   }
 
   private clearTimers(): void {
-    if (this.visibleTimeout) {
+    if (this.visibleTimeout !== undefined) {
       clearTimeout(this.visibleTimeout);
       this.visibleTimeout = undefined;
     }
-    if (this.fadeTimeout) {
+    if (this.fadeTimeout !== undefined) {
       clearTimeout(this.fadeTimeout);
       this.fadeTimeout = undefined;
     }

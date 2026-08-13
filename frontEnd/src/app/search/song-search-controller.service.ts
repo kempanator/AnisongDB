@@ -1,22 +1,22 @@
 import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Observable, Subscription } from 'rxjs';
+import { Subscription } from 'rxjs';
 import { SearchRequestService } from './search-request.service';
-import { reorderSongsByAnnSongIds, sortSongsByDefault } from '../utils/song-ordering';
-import { SongRow } from '../models/song';
-import { SearchCommand, SongId } from '../models/search';
+import { SongRow } from '../core/models/song';
+import { NotificationService } from '../core/services/notification.service';
+import { formatSongCount } from '../core/utils/number';
+import { reorderSongsByAnnSongIds, sortSongsByDefault } from '../core/utils/song-ordering';
+import { SearchCommand, SongId } from './search';
 
 export type PlaylistLoadSource = 'import' | 'saved';
-
-export type PlaylistLoadResult = {
-  source: PlaylistLoadSource;
-  requestedCount: number;
-  loadedCount: number;
-};
 
 type PlaylistLoad = {
   annSongIds: number[];
   source: PlaylistLoadSource;
+};
+
+export type SearchResultState = {
+  order: 'default' | 'playlist';
 };
 
 /**
@@ -27,28 +27,28 @@ type PlaylistLoad = {
 @Injectable({ providedIn: 'root' })
 export class SongSearchController {
   private readonly requests = inject(SearchRequestService);
+  private readonly notifications = inject(NotificationService);
   private readonly destroyRef = inject(DestroyRef);
   // The key prevents an identical in-flight request from being restarted.
   // Completed searches are not cached or deduplicated.
   private activeSearch: { key: string; subscription: Subscription } | null = null;
-  private readonly searchingSignal = signal(false);
+  private readonly songListSignal = signal<SongRow[] | null>(null);
+  private readonly searchErrorSignal = signal<string | null>(null);
+  private readonly latestResultSignal = signal<SearchResultState>({ order: 'default' });
 
-  readonly songList = signal<SongRow[] | null>(null);
-  readonly searchRevision = signal(0);
-  readonly resultOrder = signal<'default' | 'playlist'>('default');
-  readonly searchError = signal<string | null>(null);
-  readonly playlistLoadResult = signal<PlaylistLoadResult | null>(null);
-  readonly searching = this.searchingSignal.asReadonly();
+  readonly songList = this.songListSignal.asReadonly();
+  readonly searchError = this.searchErrorSignal.asReadonly();
+  // A fresh object is published for every completed result, even when its
+  // ordering matches the previous result. Consumers can react without a
+  // separate revision counter that must be kept in sync.
+  readonly latestResult = this.latestResultSignal.asReadonly();
 
   constructor() {
     this.destroyRef.onDestroy(() => this.activeSearch?.subscription.unsubscribe());
   }
 
   startInitialSearch(): boolean {
-    return this.runSearch({
-      kind: 'initial-random',
-      body: SearchRequestService.INITIAL_RANDOM_BODY,
-    });
+    return this.runSearch({ kind: 'initial-random' });
   }
 
   runSearch(command: SearchCommand): boolean {
@@ -60,13 +60,7 @@ export class SongSearchController {
   }
 
   replaceSongList(songList: SongRow[]): void {
-    this.setSongList(songList);
-  }
-
-  cancelSearch(): boolean {
-    const hadActiveSearch = this.activeSearch !== null;
-    this.cancelActiveSearch();
-    return hadActiveSearch;
+    this.songListSignal.set(songList);
   }
 
   searchSeason(season: string): boolean {
@@ -87,11 +81,9 @@ export class SongSearchController {
       // empty ID list. Apply the empty result locally instead of presenting a
       // normal playlist load as a request-validation failure.
       this.cancelActiveSearch();
-      this.searchError.set(null);
-      this.playlistLoadResult.set({ source, requestedCount: 0, loadedCount: 0 });
-      this.resultOrder.set('playlist');
-      this.setSongList([]);
-      this.searchRevision.update((revision) => revision + 1);
+      this.searchErrorSignal.set(null);
+      this.notifyPlaylistLoad(source, 0, 0);
+      this.publishResult([], 'playlist');
       return;
     }
 
@@ -127,10 +119,9 @@ export class SongSearchController {
     command: SearchCommand,
     playlistLoad: PlaylistLoad | null,
   ): void {
-    const request = this.requestFor(command);
+    const request = this.requests.request(command);
     this.cancelActiveSearch();
-    this.searchError.set(null);
-    this.searchingSignal.set(true);
+    this.searchErrorSignal.set(null);
     const searchKey = this.searchKey(command);
 
     const subscription = request.subscribe({
@@ -140,19 +131,17 @@ export class SongSearchController {
           : sortSongsByDefault(results);
 
         if (playlistLoad) {
-          this.playlistLoadResult.set({
-            source: playlistLoad.source,
-            requestedCount: new Set(playlistLoad.annSongIds).size,
-            loadedCount: nextSongList.length,
-          });
+          this.notifyPlaylistLoad(
+            playlistLoad.source,
+            new Set(playlistLoad.annSongIds).size,
+            nextSongList.length,
+          );
         }
 
-        this.resultOrder.set(playlistLoad ? 'playlist' : 'default');
-        this.setSongList(nextSongList);
-        this.searchRevision.update((revision) => revision + 1);
+        this.publishResult(nextSongList, playlistLoad ? 'playlist' : 'default');
       },
       error: (error: unknown) => {
-        this.searchError.set(formatSearchError(error));
+        this.searchErrorSignal.set(formatSearchError(error));
         logSearchError(error);
         this.finishSearch();
       },
@@ -167,52 +156,32 @@ export class SongSearchController {
     // generation counter or stale-callback guard would be redundant here.
     this.activeSearch?.subscription.unsubscribe();
     this.activeSearch = null;
-    this.searchingSignal.set(false);
   }
 
   private finishSearch(): void {
     this.activeSearch = null;
-    this.searchingSignal.set(false);
   }
 
-  private setSongList(songList: SongRow[]): void {
-    this.songList.set(songList);
+  private publishResult(songList: SongRow[], order: SearchResultState['order']): void {
+    this.songListSignal.set(songList);
+    this.latestResultSignal.set({ order });
   }
 
   private searchKey(command: SearchCommand): string {
     return JSON.stringify(command);
   }
 
-  private requestFor(command: SearchCommand): Observable<SongRow[]> {
-    switch (command.kind) {
-      case 'initial-random':
-        return this.requests.getFirstNRequest();
-      case 'random':
-        return this.requests.randomSongsRequest(command.body);
-      case 'general':
-        return this.requests.searchRequest(command.body);
-      case 'season':
-        return this.requests.seasonRequest(command.body);
-      case 'ann-ids':
-        return this.requests.annIdsSearchRequest(command.body);
-      case 'mal-ids':
-        return this.requests.malIdsSearchRequest(command.body);
-      case 'ann-song-ids':
-        return this.requests.annSongIdsSearchRequest(command.body);
-      case 'amq-song-ids':
-        return this.requests.amqSongIdsSearchRequest(command.body);
-      case 'artist-ids':
-        return this.requests.artistIdsSearchRequest(command.body);
-      case 'composer-ids':
-        return this.requests.composerIdsSearchRequest(command.body);
-      default:
-        return assertNever(command);
+  private notifyPlaylistLoad(
+    source: PlaylistLoadSource,
+    requestedCount: number,
+    loadedCount: number,
+  ): void {
+    if (loadedCount < requestedCount) {
+      this.notifications.show(`Loaded ${loadedCount} of ${requestedCount} songs.`);
+    } else if (source === 'import') {
+      this.notifications.show(`Loaded ${formatSongCount(loadedCount)} into the table.`);
     }
   }
-}
-
-function assertNever(value: never): never {
-  throw new Error(`Unsupported search command: ${JSON.stringify(value)}`);
 }
 
 function formatSearchError(error: unknown): string {

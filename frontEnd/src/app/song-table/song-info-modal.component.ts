@@ -1,14 +1,15 @@
-import { afterRenderEffect, ChangeDetectionStrategy, Component, computed, ElementRef, inject, input, output, viewChild } from '@angular/core';
-import { SongCredit, SongRow } from '../core/models/song';
-import { DistServerService } from '../core/services/dist-server.service';
+import { afterRenderEffect, ChangeDetectionStrategy, Component, computed, ElementRef, inject, input, viewChild } from '@angular/core';
+import { hasAnnSongId, SongCredit, SongRow } from '../core/models/song';
+import { formatSongLength, getBroadcastMetadata } from '../core/utils/song-metadata';
+import { ClipboardService } from '../core/services/clipboard.service';
 import { ModalService } from '../core/services/modal.service';
 import { RankedStatusService } from '../core/services/ranked-status.service';
-import { SongSearchController } from '../core/services/song-search-controller.service';
 import { UserPreferencesService } from '../core/services/user-preferences.service';
+import { SongSearchController } from '../search/song-search-controller.service';
 import { ModalShellComponent } from '../shared/modal-shell.component';
-import { buildSongInfoView, CreditSearchRole, creditSearchTitle } from './song-info';
+import { buildCreditSections, collectPersonIds, CreditSearchRole, creditSearchTitle } from './song-credits';
+import { ANIME_LIST_SITES, SONG_DIST_LINKS } from './song-links';
 import { SongTableController } from './song-table.controller';
-import { collectPersonIds } from './song-table.utils';
 
 @Component({
   selector: 'app-song-info-modal',
@@ -20,17 +21,14 @@ import { collectPersonIds } from './song-table.utils';
 })
 export class SongInfoModalComponent {
   private readonly songSearchController = inject(SongSearchController);
+  readonly clipboard = inject(ClipboardService);
   private readonly rankedStatusService = inject(RankedStatusService);
-  private readonly distServerService = inject(DistServerService);
   private readonly modalService = inject(ModalService);
-  private readonly preferences = inject(UserPreferencesService);
+  readonly preferences = inject(UserPreferencesService);
   private readonly table = inject(SongTableController);
 
   readonly song = input.required<SongRow>();
-  readonly clipboardPopup = input<{ left: string; top: string } | null>(null);
   readonly modalContent = viewChild<ElementRef<HTMLElement>>('modalContent');
-
-  readonly copyText = output<{ event: MouseEvent; text: string }>();
 
   readonly rankedActive = this.rankedStatusService.active;
   readonly rowIndex = computed(() => this.table.songs()?.indexOf(this.song()) ?? -1);
@@ -38,21 +36,28 @@ export class SongInfoModalComponent {
   readonly showAmqSongId = computed(() => this.preferences.preferences().showAmqSongId);
   readonly creditSearchTitle = creditSearchTitle;
 
-  readonly info = computed(() => {
-    const server = this.distServerService.distServer();
-    return buildSongInfoView(this.song(), this.distServerService.getBaseUrl(server));
+  readonly creditSections = computed(() => buildCreditSections(this.song()));
+  readonly broadcast = computed(() => getBroadcastMetadata(this.song()).label);
+  readonly formattedLength = computed(() => formatSongLength(this.song().songLength));
+  readonly annSongId = computed(() => {
+    const song = this.song();
+    return hasAnnSongId(song) ? song.annSongId : null;
   });
-
-  // Scroll back to the top after each rendered song change.
-  private readonly scrollOnSongChange = afterRenderEffect(() => {
-    this.song();
-    this.modalContent()?.nativeElement.scrollTo(0, 0);
-  });
+  readonly animeListSites = ANIME_LIST_SITES;
+  readonly songDistLinks = SONG_DIST_LINKS;
 
   private readonly maxGridColumns = 3;
 
+  constructor() {
+    // Scroll back to the top after each rendered song change.
+    afterRenderEffect(() => {
+      this.song();
+      this.modalContent()?.nativeElement.scrollTo(0, 0);
+    });
+  }
+
   onCopy(event: MouseEvent, text: unknown) {
-    this.copyText.emit({ event, text: String(text ?? '') });
+    this.clipboard.copy(event, text);
   }
 
   onKeydown(event: KeyboardEvent) {

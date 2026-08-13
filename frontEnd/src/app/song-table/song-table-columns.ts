@@ -1,7 +1,9 @@
-import { compareSongTypes } from '../core/utils/song-ordering';
-import type { AnimeTitleLanguage } from '../core/services/user-preferences.service';
-import type { SongRow, SortableSongValue } from '../core/models/song';
-import { formatSongLength, getBroadcastLabel } from './song-table.utils';
+import { compareSongsByAnnId } from '../core/utils/song-ordering';
+import { compareSongTypes, formatSongLength, getBroadcastMetadata, parseAnimeSeason } from '../core/utils/song-metadata';
+import type { AnimeTitleLanguage } from '../core/models/user-preferences';
+import { hasAnnSongId, type SongRow } from '../core/models/song';
+
+type SortableSongValue = string | number | boolean | null;
 
 type SongColumnReader<Value> = (
   song: SongRow,
@@ -27,19 +29,6 @@ type SongColumnConfig<Id extends string = string> = {
   copy?: SongColumnReader<string>;
   // Complete column comparison before the shared default tie-break chain.
   sort?: SongColumnComparator;
-};
-
-export type AnimeListSite = {
-  img: string;
-  alt: string;
-  getUrl: (song: SongRow) => string | null;
-};
-
-export type SongDistLink = {
-  label: string;
-  infoLabel: string;
-  title: string;
-  field: 'HQ' | 'MQ' | 'audio';
 };
 
 const getAnimeTitle: SongColumnReader<string> = (song, language) =>
@@ -78,17 +67,14 @@ const SONG_TABLE_COLUMN_CONFIGS = [
     nowrap: true,
     display: (song) => song.annId,
     copy: (song) => String(song.annId),
-    sort: sortBy(
-      (song) => song.annId,
-      compareSongType,
-    ),
+    sort: compareSongsByAnnId,
   },
   {
     id: 'annSongId',
     header: 'ANN Song ID',
     defaultVisible: false,
-    display: (song) => (song.annSongId !== -1 ? song.annSongId : '–'),
-    copy: (song) => (song.annSongId !== -1 ? String(song.annSongId) : ''),
+    display: (song) => (hasAnnSongId(song) ? song.annSongId : '–'),
+    copy: (song) => (hasAnnSongId(song) ? String(song.annSongId) : ''),
     sort: sortBy((song) => song.annSongId),
   },
   {
@@ -116,8 +102,7 @@ const SONG_TABLE_COLUMN_CONFIGS = [
     },
     sort: sortBy(
       (song) => {
-        const parsed = parseVintage(song.animeVintage || '');
-        return parsed.year === null ? -1 : parsed.year * 10 + parsed.seasonIndex;
+        return parseAnimeSeason(song.animeVintage)?.order ?? -1;
       },
       compareAnimeTitle,
       compareSongType,
@@ -147,11 +132,9 @@ const SONG_TABLE_COLUMN_CONFIGS = [
     header: 'Broadcast',
     defaultVisible: false,
     nowrap: true,
-    display: (song) => getBroadcastLabel(song),
-    copy: (song) => getBroadcastLabel(song) || '',
-    sort: sortBy((song) =>
-      song.isDub && song.isRebroadcast ? 3 : song.isRebroadcast ? 2 : song.isDub ? 1 : 0,
-    ),
+    display: (song) => getBroadcastMetadata(song).label,
+    copy: (song) => getBroadcastMetadata(song).label,
+    sort: sortBy((song) => getBroadcastMetadata(song).order),
   },
   {
     id: 'songType',
@@ -267,96 +250,26 @@ export type SongColumnId = typeof SONG_TABLE_COLUMN_CONFIGS[number]['id'];
 export type SongColumnDefinition = SongColumnConfig<SongColumnId>;
 export const SONG_TABLE_COLUMNS: readonly SongColumnDefinition[] = SONG_TABLE_COLUMN_CONFIGS;
 
-const SONG_TABLE_COLUMN_BY_ID = new Map<SongColumnId, SongColumnDefinition>(
-  SONG_TABLE_COLUMNS.map((column) => [column.id, column]),
-);
-
-export const ANIME_LIST_SITES: readonly AnimeListSite[] = [
-  {
-    img: 'assets/img/ANN_Logo.png',
-    alt: 'Anime News Network',
-    getUrl: (song) => `https://www.animenewsnetwork.com/encyclopedia/anime.php?id=${song.annId}`,
-  },
-  {
-    img: 'assets/img/MyAnimeList_Logo.png',
-    alt: 'MyAnimeList',
-    getUrl: (song) => song.linked_ids?.myanimelist
-      ? `https://myanimelist.net/anime/${song.linked_ids.myanimelist}`
-      : null,
-  },
-  {
-    img: 'assets/img/AniDB_Logo.png',
-    alt: 'Anidb',
-    getUrl: (song) => song.linked_ids?.anidb
-      ? `https://anidb.net/anime/${song.linked_ids.anidb}`
-      : null,
-  },
-  {
-    img: 'assets/img/AniList_logo.png',
-    alt: 'Anilist',
-    getUrl: (song) => song.linked_ids?.anilist
-      ? `https://anilist.co/anime/${song.linked_ids.anilist}`
-      : null,
-  },
-  {
-    img: 'assets/img/Kitsu_Logo.png',
-    alt: 'Kitsu',
-    getUrl: (song) => song.linked_ids?.kitsu
-      ? `https://kitsu.app/anime/${song.linked_ids.kitsu}`
-      : null,
-  },
-];
-
-export const SONG_DIST_LINKS = [
-  { label: '720', infoLabel: '720p', title: 'Open 720 link', field: 'HQ' },
-  { label: '480', infoLabel: '480p', title: 'Open 480 link', field: 'MQ' },
-  { label: 'MP3', infoLabel: 'MP3', title: 'Open MP3 link', field: 'audio' },
-] as const satisfies readonly SongDistLink[];
-
-const SEASON_ORDER: Record<string, number> = {
-  Winter: 0,
-  Spring: 1,
-  Summer: 2,
-  Fall: 3,
-};
-
-export function parseVintage(vintage: string): {
-  season: string;
-  year: number | null;
-  seasonIndex: number;
-} {
-  const parsed = /^([A-Za-z]+)\s+(\d{4})$/.exec((vintage || '').trim());
-  if (!parsed) return { season: '', year: null, seasonIndex: 4 };
-
-  const season = parsed[1].charAt(0).toUpperCase() + parsed[1].slice(1).toLowerCase();
-  return {
-    season,
-    year: Number.parseInt(parsed[2], 10),
-    seasonIndex: SEASON_ORDER[season] ?? 4,
-  };
-}
-
-export function getSeasonYearValue(song: SongRow): string {
-  const parsed = parseVintage(song.animeVintage || '');
-  return parsed.year === null
-    ? song.animeVintage || '–'
-    : `${parsed.season} ${parsed.year}`;
+function getSeasonYearValue(song: SongRow): string {
+  return parseAnimeSeason(song.animeVintage)?.label
+    ?? song.animeVintage
+    ?? '–';
 }
 
 export function getColumnDisplayValue(
   song: SongRow,
-  columnId: SongColumnId,
+  column: SongColumnDefinition,
   language: AnimeTitleLanguage,
 ): string | number {
-  return SONG_TABLE_COLUMN_BY_ID.get(columnId)?.display?.(song, language) ?? '–';
+  return column.display?.(song, language) ?? '–';
 }
 
 export function getColumnCopyValue(
   song: SongRow,
-  columnId: SongColumnId,
+  column: SongColumnDefinition,
   language: AnimeTitleLanguage,
 ): string {
-  return SONG_TABLE_COLUMN_BY_ID.get(columnId)?.copy?.(song, language) ?? '';
+  return column.copy?.(song, language) ?? '';
 }
 
 export function comparePrimitiveValues(
@@ -395,19 +308,11 @@ function sortBy(
 export function compareSongsByColumn(
   left: SongRow,
   right: SongRow,
-  columnId: SongColumnId,
+  column: SongColumnDefinition,
   language: AnimeTitleLanguage,
 ): number {
-  const column = SONG_TABLE_COLUMN_BY_ID.get(columnId);
-  if (!column?.sort) return 0;
+  if (!column.sort) return 0;
 
   return column.sort(left, right, language)
-    || compareDefaultTieBreaks(left, right);
-}
-
-function compareDefaultTieBreaks(left: SongRow, right: SongRow): number {
-  // ANN ID groups an anime; song type and ANN Song ID finish ordering its songs.
-  return comparePrimitiveValues(left.annId, right.annId)
-    || compareSongTypes(left.songType, right.songType)
-    || comparePrimitiveValues(left.annSongId, right.annSongId);
+    || compareSongsByAnnId(left, right);
 }

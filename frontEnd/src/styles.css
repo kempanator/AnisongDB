@@ -3,7 +3,7 @@
 @import "font-awesome/css/font-awesome.css";
 
 /*
-  Theme tokens. ThemeService only sets data-theme on <html>.
+  Theme tokens. AppComponent keeps data-theme on <html> in sync with preferences.
   Use these role names in component CSS.
 */
 :root,
@@ -41,7 +41,7 @@
   --track: #222222;
   --player: #2c2c2c;
 
-  /* Vidstack bridge: layout colorScheme is set from ThemeService */
+  /* Vidstack bridge: the audio layout reads the same theme preference. */
   --audio-bg: var(--player);
   --audio-volume-bg: var(--player);
   --media-menu-bg: var(--player);

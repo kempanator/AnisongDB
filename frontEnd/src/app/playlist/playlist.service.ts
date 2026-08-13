@@ -1,9 +1,17 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
-import { UserPreferencesService } from '../core/services/user-preferences.service';
-import { downloadJsonFile } from '../shared/download-json-file';
-import { DEFAULT_PLAYLIST_SORT, parsePlaylistSort, sortPlaylists } from './playlist-sort';
-import type { PlaylistSort } from './playlist-sort';
-import type { Playlist, PlaylistAddResult, PlaylistAppendResult, PlaylistToggleResult } from './playlist.types';
+import { AppStorageService } from '../core/services/app-storage.service';
+import { parseNonNegativeInteger } from '../core/utils/number';
+import { downloadJsonFile, sanitizeFileNameSegment } from '../shared/json-file';
+import {
+  DEFAULT_PLAYLIST_SORT,
+  parsePlaylistSort,
+  sortPlaylists,
+  type Playlist,
+  type PlaylistAddResult,
+  type PlaylistAppendResult,
+  type PlaylistSort,
+  type PlaylistToggleResult,
+} from './playlist';
 
 export const PLAYLIST_MAX_SONGS = 500;
 
@@ -16,7 +24,7 @@ export const PLAYLIST_TOGGLE_MESSAGES: Partial<Record<PlaylistToggleResult, stri
 
 @Injectable({ providedIn: 'root' })
 export class PlaylistService {
-  private readonly preferences = inject(UserPreferencesService);
+  private readonly storage = inject(AppStorageService);
   private readonly playlistsSignal = signal<Playlist[]>(this.loadPlaylists());
   private readonly playlistSortSignal = signal<PlaylistSort>(this.loadPlaylistSort());
   private readonly selectedPlaylistIdSignal = signal<string | null>(null);
@@ -36,14 +44,10 @@ export class PlaylistService {
     this.autoAddEnabledSignal() ? this.selectedPlaylist() : null,
   );
 
-  setPlaylistSort(sort: PlaylistSort): void {
+  setPlaylistSort(sort: unknown): void {
     const nextSort = parsePlaylistSort(sort);
     this.playlistSortSignal.set(nextSort);
-    try {
-      this.preferences.updateStoredValues({ playlistSort: nextSort });
-    } catch (_error) {
-      // Keep in-memory sort usable if storage is unavailable.
-    }
+    this.storage.update({ playlistSort: nextSort });
   }
 
   resetPlaylistSort(): void {
@@ -51,7 +55,18 @@ export class PlaylistService {
   }
 
   selectPlaylist(id: string | null): void {
-    this.selectedPlaylistIdSignal.set(id || null);
+    const selectedId = id && this.findPlaylist(id) ? id : null;
+    this.selectedPlaylistIdSignal.set(selectedId);
+    if (!selectedId) this.cancelAutoAdd();
+  }
+
+  ensureSelectedPlaylist(): Playlist | null {
+    const selected = this.selectedPlaylist();
+    if (selected) return selected;
+
+    const fallback = this.sortedPlaylists()[0] ?? null;
+    this.selectPlaylist(fallback?.id ?? null);
+    return fallback;
   }
 
   setAutoAdd(enabled: boolean): void {
@@ -91,7 +106,6 @@ export class PlaylistService {
   deletePlaylist(id: string): void {
     if (this.selectedPlaylistIdSignal() === id) {
       this.selectPlaylist(null);
-      this.cancelAutoAdd();
     }
     this.updatePlaylists(this.playlistsSignal().filter((playlist) => playlist.id !== id));
   }
@@ -230,7 +244,7 @@ export class PlaylistService {
 
   exportPlaylist(playlist: Playlist): void {
     downloadJsonFile(
-      `${this.fileNameFor(playlist.name)}-playlist.json`,
+      `${sanitizeFileNameSegment(playlist.name) || 'playlist'}-playlist.json`,
       {
         name: playlist.name,
         createdOn: playlist.createdOn,
@@ -241,12 +255,12 @@ export class PlaylistService {
   }
 
   private loadPlaylists(): Playlist[] {
-    const value = this.preferences.getStoredValue('playlists');
+    const value = this.storage.get('playlists');
     return Array.isArray(value) ? value.flatMap((entry) => this.parsePlaylist(entry)) : [];
   }
 
   private loadPlaylistSort(): PlaylistSort {
-    return parsePlaylistSort(this.preferences.getStoredValue('playlistSort'));
+    return parsePlaylistSort(this.storage.get('playlistSort'));
   }
 
   private parsePlaylist(value: unknown): Playlist[] {
@@ -264,11 +278,7 @@ export class PlaylistService {
 
   private updatePlaylists(playlists: Playlist[]): void {
     this.playlistsSignal.set(playlists);
-    try {
-      this.preferences.updateStoredValues({ playlists });
-    } catch (_error) {
-      // Keep in-memory playlists usable if storage is unavailable.
-    }
+    this.storage.update({ playlists });
   }
 
   private findPlaylist(id: string): Playlist | undefined {
@@ -308,8 +318,7 @@ export class PlaylistService {
   }
 
   private toSongId(value: unknown): number | null {
-    const numberValue = typeof value === 'number' ? value : Number(value);
-    return Number.isInteger(numberValue) && numberValue >= 0 ? numberValue : null;
+    return parseNonNegativeInteger(value);
   }
 
   private createId(): string {
@@ -318,7 +327,4 @@ export class PlaylistService {
       : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   }
 
-  private fileNameFor(name: string): string {
-    return name.replace(/[<>:"/\\|?*]+/g, '-').trim() || 'playlist';
-  }
 }

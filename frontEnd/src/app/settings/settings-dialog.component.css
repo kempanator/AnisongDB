@@ -213,12 +213,12 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.settings-preferences-section {
+.settings-data-section {
   padding-top: 16px;
   border-top: 1px solid var(--border);
 }
 
-.settings-preferences-actions {
+.settings-data-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -230,7 +230,7 @@
     grid-template-columns: 1fr;
   }
 
-  .settings-preferences-actions .app-button {
+  .settings-data-actions .app-button {
     flex: 1;
     justify-content: center;
   }

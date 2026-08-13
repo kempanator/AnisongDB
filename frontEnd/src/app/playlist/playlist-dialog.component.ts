@@ -1,12 +1,18 @@
-import { afterNextRender, ChangeDetectionStrategy, Component, computed, inject, Injector, output, signal, viewChild } from '@angular/core';
-import { formatSongCount } from '../core/models/song';
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, ElementRef, inject, Injector, signal, viewChild } from '@angular/core';
+import { formatSongCount } from '../core/utils/number';
+import { ModalService } from '../core/services/modal.service';
 import { NotificationService } from '../core/services/notification.service';
-import { SongSearchController } from '../core/services/song-search-controller.service';
+import { SongSearchController } from '../search/song-search-controller.service';
 import { ModalShellComponent } from '../shared/modal-shell.component';
 import { PLAYLIST_MAX_SONGS, PlaylistService } from './playlist.service';
-import { PLAYLIST_SORT_OPTIONS } from './playlist-sort';
-import type { PlaylistSort } from './playlist-sort';
-import type { Playlist } from './playlist.types';
+import { PLAYLIST_SORT_OPTIONS, type Playlist } from './playlist';
+import { readJsonFile } from '../shared/json-file';
+
+type ActionsMenuState = {
+  playlistId: string;
+  position: { left: number; top: number } | null;
+  trigger: HTMLElement;
+};
 
 @Component({
   selector: 'app-playlist-dialog',
@@ -20,24 +26,24 @@ import type { Playlist } from './playlist.types';
   },
 })
 export class PlaylistDialogComponent {
-  readonly closed = output<void>();
+  readonly modals = inject(ModalService);
   readonly playlistService = inject(PlaylistService);
   readonly sortedPlaylists = this.playlistService.sortedPlaylists;
   readonly playlistSortOptions = PLAYLIST_SORT_OPTIONS;
   readonly formatSongCount = formatSongCount;
-  readonly openActionsId = signal<string | null>(null);
+  private readonly actionsMenuState = signal<ActionsMenuState | null>(null);
+  private readonly actionsMenuElement = viewChild<ElementRef<HTMLElement>>('actionsMenu');
+  readonly openActionsId = computed(() => this.actionsMenuState()?.playlistId ?? null);
   readonly openActionsPlaylist = computed(() => {
     const playlistId = this.openActionsId();
     return playlistId
       ? this.playlistService.playlists().find((playlist) => playlist.id === playlistId) ?? null
       : null;
   });
-  readonly actionsMenuPosition = signal<{ left: number; top: number } | null>(null);
+  readonly actionsMenuPosition = computed(() => this.actionsMenuState()?.position ?? null);
   private readonly songs = inject(SongSearchController);
   private readonly notifications = inject(NotificationService);
   private readonly injector = inject(Injector);
-  private readonly modal = viewChild.required(ModalShellComponent);
-  private actionsMenuTrigger: HTMLElement | null = null;
 
   createPlaylist(input: HTMLInputElement): void {
     const ids = this.playlistService.annSongIdsFromRows(this.songs.songList() ?? []);
@@ -54,7 +60,7 @@ export class PlaylistDialogComponent {
 
   loadPlaylist(playlist: Playlist): void {
     this.songs.loadPlaylist(playlist.annSongIds, 'saved');
-    this.modal().close();
+    this.modals.close('playlists');
   }
 
   toggleActions(playlistId: string, event: MouseEvent): void {
@@ -89,31 +95,26 @@ export class PlaylistDialogComponent {
   }
 
   private openActions(playlistId: string, trigger: HTMLElement, focusLastItem = false): void {
-    this.actionsMenuTrigger = trigger;
-    this.actionsMenuPosition.set(null);
-    this.openActionsId.set(playlistId);
+    this.actionsMenuState.set({ playlistId, position: null, trigger });
 
     // The @if creates the menu hidden so it can be measured without flashing in
     // the wrong place. Positioning makes it visible on the following render, so
     // focus must wait for that second render; hidden elements cannot take focus.
     afterNextRender(() => {
-      if (!this.positionActionsMenu(trigger, playlistId)) return;
+      if (!this.positionActionsMenu(playlistId)) return;
       afterNextRender(() => this.focusActionsMenu(playlistId, focusLastItem), { injector: this.injector });
     }, { injector: this.injector });
   }
 
   closeActions(restoreFocus = false): void {
-    const trigger = this.actionsMenuTrigger;
-    const menuId = this.openActionsId();
-    const menu = menuId ? document.getElementById(`playlist-actions-${menuId}`) : null;
+    const state = this.actionsMenuState();
+    const menu = this.actionsMenuElement()?.nativeElement;
     const shouldRestoreFocus = restoreFocus || !!menu?.contains(document.activeElement);
 
-    this.openActionsId.set(null);
-    this.actionsMenuPosition.set(null);
-    this.actionsMenuTrigger = null;
+    this.actionsMenuState.set(null);
 
-    if (shouldRestoreFocus && trigger?.isConnected) {
-      trigger.focus({ preventScroll: true });
+    if (shouldRestoreFocus && state?.trigger.isConnected) {
+      state.trigger.focus({ preventScroll: true });
     }
   }
 
@@ -150,16 +151,11 @@ export class PlaylistDialogComponent {
     items[nextIndex].focus({ preventScroll: true });
   }
 
-  setSort(event: Event): void {
-    this.playlistService.setPlaylistSort((event.target as HTMLSelectElement).value as PlaylistSort);
-  }
-
   isAutoAddPlaylist(playlist: Playlist): boolean {
     return this.playlistService.autoAddPlaylist()?.id === playlist.id;
   }
 
   toggleAutoAdd(playlist: Playlist): void {
-    this.closeActions();
     if (this.isAutoAddPlaylist(playlist)) {
       this.playlistService.cancelAutoAdd();
       this.notifications.show(`Auto-add stopped for “${playlist.name}”.`);
@@ -170,13 +166,11 @@ export class PlaylistDialogComponent {
   }
 
   duplicate(playlist: Playlist): void {
-    this.closeActions();
     const duplicate = this.playlistService.duplicatePlaylist(playlist.id);
     this.notifications.show(duplicate ? `Created “${duplicate.name}”.` : 'Could not duplicate that playlist.');
   }
 
   appendTable(playlist: Playlist): void {
-    this.closeActions();
     const ids = this.playlistService.annSongIdsFromRows(this.songs.songList() ?? [], Infinity);
     if (!ids.length) {
       this.notifications.show('There are no songs in the table to append.');
@@ -204,7 +198,6 @@ export class PlaylistDialogComponent {
   }
 
   replaceWithTable(playlist: Playlist): void {
-    this.closeActions();
     const ids = this.playlistService.annSongIdsFromRows(this.songs.songList() ?? []);
     if (!ids.length) {
       this.notifications.show('There are no songs in the table to replace this playlist with.');
@@ -218,7 +211,6 @@ export class PlaylistDialogComponent {
   }
 
   rename(playlist: Playlist): void {
-    this.closeActions();
     const name = window.prompt('Playlist name', playlist.name);
     if (name === null) return;
     this.notifications.show(this.playlistService.renamePlaylist(playlist.id, name)
@@ -227,7 +219,6 @@ export class PlaylistDialogComponent {
   }
 
   deletePlaylist(playlist: Playlist): void {
-    this.closeActions();
     if (!window.confirm(`Delete “${playlist.name}”?`)) return;
     this.playlistService.deletePlaylist(playlist.id);
     this.notifications.show('Playlist deleted.');
@@ -247,28 +238,29 @@ export class PlaylistDialogComponent {
 
   private async importFile(file: File): Promise<void> {
     try {
-      const ids = this.playlistService.extractAnnSongIds(JSON.parse(await file.text()));
+      const ids = this.playlistService.extractAnnSongIds(await readJsonFile(file));
       if (!ids.length) {
         this.notifications.show('No ANN Song IDs were found in that JSON file.');
         return;
       }
       this.songs.loadPlaylist(ids, 'import');
-      this.modal().close();
+      this.modals.close('playlists');
     } catch (_error) {
       this.notifications.show('Could not read that JSON file.');
     }
   }
 
-  private positionActionsMenu(trigger: HTMLElement, playlistId: string): boolean {
-    if (this.openActionsId() !== playlistId || !trigger.isConnected) return false;
+  private positionActionsMenu(playlistId: string): boolean {
+    const state = this.actionsMenuState();
+    if (state?.playlistId !== playlistId || !state.trigger.isConnected) return false;
 
-    const menu = document.getElementById(`playlist-actions-${playlistId}`);
-    const modal = trigger.closest<HTMLElement>('.modal-shell-content');
+    const menu = this.actionsMenuElement()?.nativeElement;
+    const modal = state.trigger.closest<HTMLElement>('.modal-shell-content');
     if (!menu || !modal) return false;
 
     const gap = 5;
     const edge = 8;
-    const triggerRect = trigger.getBoundingClientRect();
+    const triggerRect = state.trigger.getBoundingClientRect();
     const modalRect = modal.getBoundingClientRect();
     const menuRect = menu.getBoundingClientRect();
     const maximumLeft = Math.max(edge, modalRect.width - menuRect.width - edge);
@@ -279,7 +271,7 @@ export class PlaylistDialogComponent {
     const preferredTop = below + menuRect.height <= modalRect.height - edge ? below : above;
     const top = Math.min(Math.max(edge, preferredTop), maximumTop);
 
-    this.actionsMenuPosition.set({ left, top });
+    this.actionsMenuState.set({ ...state, position: { left, top } });
     return true;
   }
 
@@ -287,9 +279,9 @@ export class PlaylistDialogComponent {
     if (this.openActionsId() !== playlistId) return;
 
     const items = Array.from(
-      document.querySelectorAll<HTMLElement>(
-        `#playlist-actions-${CSS.escape(playlistId)} [role="menuitem"]:not([disabled])`,
-      ),
+      this.actionsMenuElement()?.nativeElement.querySelectorAll<HTMLElement>(
+        '[role="menuitem"]:not([disabled])',
+      ) ?? [],
     );
     const item = focusLastItem ? items.at(-1) : items[0];
     item?.focus({ preventScroll: true });

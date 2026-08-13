@@ -105,12 +105,10 @@
               <h4 class="table-stats-section-title">Top 10 anime</h4>
               @for (entry of stats().topAnime; track entry.key) {
                 <div class="table-stats-ranking-row">
-                  @if (isSearchableId(entry.key)) {
-                    <button type="button" class="app-icon-button app-icon-button--inline table-stats-ranking-search"
-                      title="Search this anime" aria-label="Search this anime" (click)="searchAnime(entry.key, $event)">
-                      <i class="fa fa-search" aria-hidden="true"></i>
-                    </button>
-                  }
+                  <button type="button" class="app-icon-button app-icon-button--inline table-stats-ranking-search"
+                    title="Search this anime" aria-label="Search this anime" (click)="searchAnime(entry.key, $event)">
+                    <i class="fa fa-search" aria-hidden="true"></i>
+                  </button>
                   <span class="table-stats-ranking-label app-copyable" title="Copy to clipboard"
                     (click)="onCopy($event, entry.label)">{{ entry.label }}</span>
                   <span class="table-stats-row-meta">{{ entry.count }}</span>
@@ -124,7 +122,7 @@
               <h4 class="table-stats-section-title">Top 10 artists</h4>
               @for (entry of stats().topArtists; track entry.key) {
                 <div class="table-stats-ranking-row">
-                  @if (!rankedActive() && isSearchableId(entry.key)) {
+                  @if (!rankedActive()) {
                     <button type="button" class="app-icon-button app-icon-button--inline table-stats-ranking-search"
                       title="Search this artist" aria-label="Search this artist" (click)="searchArtist(entry.key, $event)">
                       <i class="fa fa-search" aria-hidden="true"></i>

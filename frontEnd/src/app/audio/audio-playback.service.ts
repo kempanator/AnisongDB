@@ -1,6 +1,6 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
-import { hasSongPlaybackSource, SongRow } from '../models/song';
-import { SongSearchController } from './song-search-controller.service';
+import { hasSongPlaybackSource, SongRow } from '../core/models/song';
+import { SongSearchController } from '../search/song-search-controller.service';
 
 export type AudioPlaybackState =
   | { status: 'idle'; song: null; error: null }

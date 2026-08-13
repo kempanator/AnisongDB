@@ -1,3 +1,5 @@
+import { parseNonNegativeInteger } from '../utils/number';
+
 export interface SongCredit {
   id: number;
   names: string[];
@@ -58,14 +60,7 @@ export function hasSongPlaybackSource(song: SongPlaybackFields): boolean {
   return getSongPlaybackSource(song) !== null;
 }
 
-export function formatSongCount(count: number): string {
-  return `${count} song${count === 1 ? '' : 's'}`;
-}
-
 /** ANN song IDs are non-negative; the backend uses -1 for "missing". */
 export function hasAnnSongId(song: Pick<SongRow, 'annSongId'>): boolean {
-  const songId = Number(song.annSongId);
-  return Number.isInteger(songId) && songId >= 0;
+  return parseNonNegativeInteger(song.annSongId) !== null;
 }
-
-export type SortableSongValue = string | number | boolean | null;

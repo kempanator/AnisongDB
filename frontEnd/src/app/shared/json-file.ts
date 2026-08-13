@@ -1,3 +1,16 @@
+export async function readJsonFile(file: File): Promise<unknown> {
+  return JSON.parse(await file.text());
+}
+
+export function sanitizeFileNameSegment(value: string): string {
+  return value
+    .trim()
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '-')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^[.-]+|[.-]+$/g, '');
+}
+
 export function downloadJsonFile(
   fileName: string,
   value: unknown,

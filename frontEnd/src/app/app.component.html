@@ -1,8 +1,5 @@
 <div class="app-shell">
-  <app-header
-    (playlistsRequested)="openModal('playlists')"
-    (settingsRequested)="openModal('settings')"
-  />
+  <app-header />
 
   <app-audio-player />
 
@@ -17,10 +14,14 @@
   </main>
 </div>
 
+@if (!activeModal()) {
+  <app-clipboard-popup-outlet />
+}
+
 @if (activeModal()?.type === 'settings') {
-  <app-settings-dialog (closed)="closeModal('settings')" />
+  <app-settings-dialog />
 } @else if (activeModal()?.type === 'playlists') {
-  <app-playlist-dialog (closed)="closeModal('playlists')" />
+  <app-playlist-dialog />
 }
 
 <app-toast-outlet />

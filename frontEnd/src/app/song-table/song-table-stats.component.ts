@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, model, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, model, signal } from '@angular/core';
+import { ClipboardService } from '../core/services/clipboard.service';
 import { RankedStatusService } from '../core/services/ranked-status.service';
 import { UserPreferencesService } from '../core/services/user-preferences.service';
-import { SongSearchController } from '../core/services/song-search-controller.service';
+import { SongSearchController } from '../search/song-search-controller.service';
 import { SongTableController } from './song-table.controller';
 import { computeTableStats, formatAvgLength, StatBreakdownEntry } from './song-table-stats';
 
@@ -23,6 +24,7 @@ type StatsSectionConfig = {
 })
 export class SongTableStatsComponent {
   private readonly host = inject(ElementRef<HTMLElement>);
+  private readonly clipboard = inject(ClipboardService);
   private readonly songSearchController = inject(SongSearchController);
   private readonly rankedStatusService = inject(RankedStatusService);
   private readonly table = inject(SongTableController);
@@ -32,7 +34,6 @@ export class SongTableStatsComponent {
     this.preferences.preferences().animeTitleLanguage,
   ));
   readonly open = model(false);
-  readonly copyText = output<{ event: MouseEvent; text: string }>();
   readonly activeTab = signal<StatsTab>('types');
   readonly rankedActive = this.rankedStatusService.active;
 
@@ -50,28 +51,21 @@ export class SongTableStatsComponent {
 
   onCopy(event: MouseEvent, text: string): void {
     event.stopPropagation();
-    this.copyText.emit({ event, text });
+    this.clipboard.copy(event, text);
   }
 
-  isSearchableId(key: string): boolean {
-    const id = Number(key);
-    return Number.isSafeInteger(id) && id >= 0;
-  }
-
-  searchAnime(key: string, event: MouseEvent): void {
+  searchAnime(id: number, event: MouseEvent): void {
     event.stopPropagation();
-    const id = Number(key);
-    if (this.isSearchableId(key) && this.songSearchController.searchAnnIds([id])) {
+    if (this.songSearchController.searchAnnIds([id])) {
       this.open.set(false);
     }
   }
 
-  searchArtist(key: string, event: MouseEvent): void {
+  searchArtist(id: number, event: MouseEvent): void {
     event.stopPropagation();
     if (this.rankedActive()) return;
 
-    const id = Number(key);
-    if (this.isSearchableId(key) && this.songSearchController.searchArtistIds([id])) {
+    if (this.songSearchController.searchArtistIds([id])) {
       this.open.set(false);
     }
   }

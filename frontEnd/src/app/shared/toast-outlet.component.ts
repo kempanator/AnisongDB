@@ -5,14 +5,14 @@ import { NotificationService } from '../core/services/notification.service';
   selector: 'app-toast-outlet',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    @if (notifications.visible()) {
+    @if (notifications.state(); as notification) {
       <div
         class="app-toast"
-        [class.app-toast-exit]="notifications.exiting()"
+        [class.app-toast-exit]="notification.phase === 'exiting'"
         role="status"
         aria-live="polite"
       >
-        {{ notifications.message() }}
+        {{ notification.message }}
       </div>
     }
   `,

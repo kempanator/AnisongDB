@@ -1,42 +1,45 @@
 import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import type { SongRow } from '../core/models/song';
-import { SongSearchController } from '../core/services/song-search-controller.service';
+import { AppStorageService } from '../core/services/app-storage.service';
 import { UserPreferencesService } from '../core/services/user-preferences.service';
+import { SongSearchController } from '../search/song-search-controller.service';
 import { compareSongsByColumn, SONG_TABLE_COLUMNS, type SongColumnId } from './song-table-columns';
 
 export type SongColumnVisibility = Record<SongColumnId, boolean>;
+export type SongTableSort = {
+  column: SongColumnId;
+  ascending: boolean;
+};
 
 @Injectable({ providedIn: 'root' })
 export class SongTableController {
   private readonly searches = inject(SongSearchController);
+  private readonly storage = inject(AppStorageService);
   private readonly preferences = inject(UserPreferencesService);
   readonly availableColumns = SONG_TABLE_COLUMNS;
   private readonly visibilitySignal = signal<SongColumnVisibility>(this.loadVisibility());
-  private readonly sortColumnSignal = signal<SongColumnId | null>(null);
-  private readonly sortAscendingSignal = signal(false);
+  private readonly sortStateSignal = signal<SongTableSort | null>(null);
 
   readonly songs = this.searches.songList;
   readonly visibility = this.visibilitySignal.asReadonly();
   readonly visibleColumns = computed(() =>
     this.availableColumns.filter((column) => this.visibilitySignal()[column.id]),
   );
-  readonly sortColumn = this.sortColumnSignal.asReadonly();
-  readonly sortAscending = this.sortAscendingSignal.asReadonly();
+  readonly sortState = this.sortStateSignal.asReadonly();
 
   constructor() {
     effect(() => {
-      this.searches.searchRevision();
-      if (this.searches.resultOrder() === 'playlist') {
+      if (this.searches.latestResult().order === 'playlist') {
         this.clearSort();
       } else {
-        this.setSort('annId', true);
+        this.sortStateSignal.set({ column: 'annId', ascending: true });
       }
     });
 
     let previousLanguage = this.preferences.preferences().animeTitleLanguage;
     effect(() => {
       const language = this.preferences.preferences().animeTitleLanguage;
-      if (language !== previousLanguage && untracked(this.sortColumn) === 'anime') {
+      if (language !== previousLanguage && untracked(this.sortState)?.column === 'anime') {
         this.clearSort();
       }
       previousLanguage = language;
@@ -65,11 +68,7 @@ export class SongTableController {
 
   resetVisibility(): void {
     this.visibilitySignal.set(this.defaultVisibility());
-    try {
-      this.preferences.removeStoredValues('songTableColumnVisibility');
-    } catch {
-      // Keep the in-memory reset usable when storage is unavailable.
-    }
+    this.storage.remove('songTableColumnVisibility');
   }
 
   sort(columnId: SongColumnId): boolean {
@@ -77,12 +76,13 @@ export class SongTableController {
     const column = this.availableColumns.find((candidate) => candidate.id === columnId);
     if (!songs || !column?.sort) return false;
 
-    const ascending = this.sortColumn() === columnId ? !this.sortAscending() : true;
+    const currentSort = this.sortState();
+    const ascending = currentSort?.column === columnId ? !currentSort.ascending : true;
     const direction = ascending ? 1 : -1;
     const language = this.preferences.preferences().animeTitleLanguage;
-    this.setSort(columnId, ascending);
+    this.sortStateSignal.set({ column: columnId, ascending });
     this.searches.replaceSongList([...songs].sort(
-      (left, right) => direction * compareSongsByColumn(left, right, columnId, language),
+      (left, right) => direction * compareSongsByColumn(left, right, column, language),
     ));
     return true;
   }
@@ -123,7 +123,6 @@ export class SongTableController {
     const reordered = [...songs];
     reordered.splice(sourceIndex, 1);
     let targetIndex = reordered.indexOf(targetSong);
-    if (targetIndex < 0) return false;
     if (insertAfter) targetIndex += 1;
     reordered.splice(targetIndex, 0, movedSong);
 
@@ -133,18 +132,12 @@ export class SongTableController {
   }
 
   clearSort(): void {
-    this.sortColumnSignal.set(null);
-    this.sortAscendingSignal.set(false);
-  }
-
-  private setSort(column: SongColumnId, ascending: boolean): void {
-    this.sortColumnSignal.set(column);
-    this.sortAscendingSignal.set(ascending);
+    this.sortStateSignal.set(null);
   }
 
   private loadVisibility(): SongColumnVisibility {
     const visibility = this.defaultVisibility();
-    const stored = this.preferences.getStoredValue('songTableColumnVisibility');
+    const stored = this.storage.get('songTableColumnVisibility');
     if (!stored || typeof stored !== 'object' || Array.isArray(stored)) return visibility;
 
     for (const column of this.availableColumns) {
@@ -161,10 +154,6 @@ export class SongTableController {
   }
 
   private saveVisibility(visibility: SongColumnVisibility): void {
-    try {
-      this.preferences.updateStoredValues({ songTableColumnVisibility: visibility });
-    } catch {
-      // Keep in-memory settings usable when storage is unavailable.
-    }
+    this.storage.update({ songTableColumnVisibility: visibility });
   }
 }

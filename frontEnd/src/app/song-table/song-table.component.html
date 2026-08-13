@@ -1,8 +1,6 @@
 @if (activeSong(); as activeSong) {
   <app-song-info-modal
     [song]="activeSong"
-    [clipboardPopup]="clipboardPopup()"
-    (copyText)="onModalCopy($event)"
   />
 }
 
@@ -22,7 +20,6 @@
       @if (songTable()) {
         <app-song-table-stats
           [(open)]="showTableStats"
-          (copyText)="onModalCopy($event)"
         />
       }
     </div>
@@ -34,7 +31,7 @@
           type="button"
           class="app-button app-button--primary"
           title="Shuffle table order"
-          (click)="shuffleTable()"
+          (click)="table.shuffle()"
         >
           <i class="fa fa-random" aria-hidden="true"></i>
           Shuffle
@@ -49,8 +46,8 @@
               <label class="column-setting-row">
                 <input
                   type="checkbox"
-                  [checked]="isColumnVisible(column.id)"
-                  (change)="toggleColumn(column.id, $any($event.target).checked)"
+                  [checked]="table.isVisible(column.id)"
+                  (change)="table.setVisible(column.id, $any($event.target).checked)"
                 />
                 {{ column.visibilityLabel ?? column.header }}
               </label>
@@ -67,26 +64,27 @@
     <table id="table" class="song-table">
       <thead>
         <tr>
+          @let sort = sortState();
           @for (column of tableHeaders(); track column.id) {
             <th
               scope="col"
               [style.text-align]="column.centered ? 'center' : null"
-              [attr.aria-sort]="sortColumn() === column.id ? (sortAscending() ? 'ascending' : 'descending') : null"
+              [attr.aria-sort]="sort?.column === column.id ? (sort?.ascending ? 'ascending' : 'descending') : null"
             >
               @if (column.sort) {
                 <button
                   type="button"
                   class="table-sort-button"
-                  [class.is-active]="sortColumn() === column.id"
+                  [class.is-active]="sort?.column === column.id"
                   [title]="'Sort by ' + column.header"
-                  (click)="sortFunction(column.id)"
+                  (click)="table.sort(column.id)"
                 >
                   {{ column.header }}
-                  @if (sortColumn() === column.id) {
+                  @if (sort?.column === column.id) {
                     <i
                       class="fa table-sort-caret"
-                      [class.fa-caret-up]="sortAscending()"
-                      [class.fa-caret-down]="!sortAscending()"
+                      [class.fa-caret-up]="sort?.ascending"
+                      [class.fa-caret-down]="!sort?.ascending"
                       aria-hidden="true"
                     ></i>
                   }
@@ -163,7 +161,7 @@
                     <span
                       class="app-copyable"
                       title="Copy to clipboard"
-                      (click)="copyToClipboard($event, song.annId + '')"
+                      (click)="clipboard.copy($event, song.annId + '')"
                       >{{ song.annId }}</span
                     >
                   </span>
@@ -185,8 +183,8 @@
                     <span
                       class="app-copyable"
                       title="Copy to clipboard"
-                      (click)="copyToClipboard($event, getColumnCopyValue(song, column.id))"
-                      >{{ getColumnDisplayValue(song, column.id) }}</span
+                      (click)="clipboard.copy($event, getColumnCopyValue(song, column))"
+                      >{{ getColumnDisplayValue(song, column) }}</span
                     >
                   </span>
                 }
@@ -207,8 +205,8 @@
                     <span
                       class="app-copyable"
                       title="Copy to clipboard"
-                      (click)="copyToClipboard($event, getColumnCopyValue(song, column.id))"
-                      >{{ getColumnDisplayValue(song, column.id) }}</span
+                      (click)="clipboard.copy($event, getColumnCopyValue(song, column))"
+                      >{{ getColumnDisplayValue(song, column) }}</span
                     >
                   </span>
                 }
@@ -229,8 +227,8 @@
                     <span
                       class="app-copyable"
                       title="Copy to clipboard"
-                      (click)="copyToClipboard($event, getColumnCopyValue(song, column.id))"
-                      >{{ getColumnDisplayValue(song, column.id) }}</span
+                      (click)="clipboard.copy($event, getColumnCopyValue(song, column))"
+                      >{{ getColumnDisplayValue(song, column) }}</span
                     >
                   </span>
                 }
@@ -256,9 +254,9 @@
                 @case ('songLinks') {
                   <div class="table-song-links">
                     @for (link of songDistLinks; track link.field) {
-                      @if (shouldShowSongLink(song, link)) {
+                      @if (song[link.field]; as fileName) {
                         <a
-                          [href]="getDistLink(song[link.field])"
+                          [href]="preferences.getDistUrl(fileName)"
                           target="_blank"
                           rel="noopener noreferrer"
                           [title]="link.title"
@@ -279,7 +277,7 @@
                       [class.app-icon-button--active]="isCurrentAudioSong(song)"
                       title="Play song"
                       aria-label="Play song"
-                      (click)="requestAudioPlayback(song)"
+                      (click)="audioPlayback.play(song)"
                     >
                       <i class="fa fa-music" aria-hidden="true"></i>
                     </button>
@@ -312,7 +310,7 @@
                     [id]="'table-row-' + rowIndex + '-delete'"
                     title="Delete song from list"
                     aria-label="Delete song from list"
-                    (click)="deleteRowEntry(song)"
+                    (click)="table.remove(song)"
                   >
                     <i class="fa fa-trash" aria-hidden="true"></i>
                   </button>
@@ -322,8 +320,8 @@
                   <span
                     class="app-copyable"
                     title="Copy to clipboard"
-                    (click)="copyToClipboard($event, getColumnCopyValue(song, column.id))"
-                    >{{ getColumnDisplayValue(song, column.id) }}</span
+                    (click)="clipboard.copy($event, getColumnCopyValue(song, column))"
+                    >{{ getColumnDisplayValue(song, column) }}</span
                   >
                 }
               }
@@ -334,14 +332,6 @@
       </tbody>
     </table>
   </div>
-}
-
-@if (modalService.active()?.type !== 'song-info') {
-  @if (clipboardPopup(); as popup) {
-    <div class="app-clipboard-popup" [style.left]="popup.left" [style.top]="popup.top">
-      Copied
-    </div>
-  }
 }
 
 @if (songToAddToPlaylist(); as song) {

@@ -22,12 +22,12 @@
 
         <strong>Schedule</strong>
         <p>
-          Each window runs 8:30 PM–9:23 PM (53 minutes) during that region's local time.
+          Each window runs {{ rankedScheduleLabel }} during that region's local time.
         </p>
         <ul>
-          <li><strong>Central</strong> Europe/Copenhagen (CET/CEST)</li>
-          <li><strong>Western</strong> America/Chicago (CDT/CST)</li>
-          <li><strong>Eastern</strong> Asia/Tokyo (JST)</li>
+          @for (region of rankedRegions; track region.region) {
+            <li><strong>{{ region.region }}</strong> {{ region.timeZone }} ({{ region.timeZoneLabel }})</li>
+          }
         </ul>
 
         <strong>API Endpoints Disabled</strong>
@@ -61,17 +61,17 @@
         class="app-input main-search-input"
         type="search"
         maxlength="500"
-        [value]="mainFilter"
+        [value]="form.main"
         (keyup.enter)="submitSearch()"
-        (input)="mainFilter = mainFilterInput.value"
+        (input)="form.main = mainFilterInput.value"
       />
 
       <label class="app-checkbox" for="search-main-checkbox-op"
         ><input
           id="search-main-checkbox-op"
           type="checkbox"
-          (change)="showOpenings = !showOpenings"
-          [checked]="showOpenings"
+          (change)="form.filters.openings = !form.filters.openings"
+          [checked]="form.filters.openings"
         />
         OP
       </label>
@@ -79,8 +79,8 @@
         ><input
           id="search-main-checkbox-ed"
           type="checkbox"
-          (change)="showEndings = !showEndings"
-          [checked]="showEndings"
+          (change)="form.filters.endings = !form.filters.endings"
+          [checked]="form.filters.endings"
         />
         ED
       </label>
@@ -88,8 +88,8 @@
         ><input
           id="search-main-checkbox-ins"
           type="checkbox"
-          (change)="showInserts = !showInserts"
-          [checked]="showInserts"
+          (change)="form.filters.inserts = !form.filters.inserts"
+          [checked]="form.filters.inserts"
         />
         INS
       </label>
@@ -98,8 +98,8 @@
         ><input
           id="search-main-checkbox-ignore-duplicates"
           type="checkbox"
-          (change)="ignoreDuplicate = !ignoreDuplicate"
-          [checked]="ignoreDuplicate"
+          (change)="form.ignoreDuplicate = !form.ignoreDuplicate"
+          [checked]="form.ignoreDuplicate"
         />
         Ignore Duplicates
       </label>
@@ -111,8 +111,8 @@
         ><input
           id="search-main-checkbox-partial-match"
           type="checkbox"
-          (change)="mainFilterPartialMatch = !mainFilterPartialMatch"
-          [checked]="mainFilterPartialMatch"
+          (change)="form.mainPartialMatch = !form.mainPartialMatch"
+          [checked]="form.mainPartialMatch"
         />
         Partial Match
       </label>
@@ -140,15 +140,17 @@
       <i class="fa fa-download"></i> JSON
     </button>
 
-    <button
+    <a
       id="search-help-json"
-      type="button"
       class="app-icon-button app-icon-button--inline search-help-button"
       title="What can I do with that JSON?"
-      (click)="openJsonHelp()"
+      aria-label="What can I do with that JSON?"
+      href="https://github.com/xSardine/AMQ-Artists-DB/tree/main/misc_scripts#misc-scripts"
+      target="_blank"
+      rel="noopener noreferrer"
     >
       <i class="fa fa-question-circle"></i>
-    </button>
+    </a>
   </div>
 </div>
 
@@ -162,16 +164,16 @@
             id="search-adv-toggle-fields-mode"
             type="button"
             class="app-icon-button advanced-search-mode-toggle"
-            [title]="advancedSearchFieldMode === 'text' ? 'Switch to lookup fields' : 'Switch to text fields'"
-            [attr.aria-label]="advancedSearchFieldMode === 'text' ? 'Switch to lookup fields' : 'Switch to text fields'"
-            [attr.aria-pressed]="advancedSearchFieldMode === 'lookup'"
+            [title]="form.advancedSearchFieldMode === 'text' ? 'Switch to lookup fields' : 'Switch to text fields'"
+            [attr.aria-label]="form.advancedSearchFieldMode === 'text' ? 'Switch to lookup fields' : 'Switch to text fields'"
+            [attr.aria-pressed]="form.advancedSearchFieldMode === 'lookup'"
             (click)="toggleAdvancedSearchFieldMode()"
           >
             <i class="fa fa-exchange" aria-hidden="true"></i>
           </button>
         </div>
 
-        @if (advancedSearchFieldMode === 'text') {
+        @if (form.advancedSearchFieldMode === 'text') {
         <div class="advanced-search-query">
           <span class="advanced-search-control">
             <input
@@ -181,21 +183,20 @@
               type="search"
               maxlength="500"
               placeholder="Search by anime..."
-              [value]="animeFilter"
+              [value]="form.anime"
               (keyup.enter)="submitSearch()"
-              (input)="animeFilter = animeFilterInput.value"
+              (input)="form.anime = animeFilterInput.value"
             />
             <select
               id="search-adv-select-anime-match"
               class="app-select advanced-search-match-select"
               title="Choose how the anime search should match"
-              [value]="animeMatchMode"
-              (change)="animeMatchMode = $any($event.target).value"
+              [value]="form.animeMatchMode"
+              (change)="form.animeMatchMode = $any($event.target).value"
             >
-              <option value="partial">Partial Match</option>
-              <option value="exact">Exact Match</option>
-              <option value="partial-case">Partial + Case</option>
-              <option value="exact-case">Exact + Case</option>
+              @for (option of matchModeOptions; track option.value) {
+                <option [value]="option.value">{{ option.label }}</option>
+              }
             </select>
           </span>
         </div>
@@ -209,21 +210,20 @@
               type="search"
               maxlength="500"
               placeholder="Search by song name..."
-              [value]="songNameFilter"
+              [value]="form.songName"
               (keyup.enter)="submitSearch()"
-              (input)="songNameFilter = songNameFilterInput.value"
+              (input)="form.songName = songNameFilterInput.value"
             />
             <select
               id="search-adv-select-song-name-match"
               class="app-select advanced-search-match-select"
               title="Choose how the song name search should match"
-              [value]="songNameMatchMode"
-              (change)="songNameMatchMode = $any($event.target).value"
+              [value]="form.songNameMatchMode"
+              (change)="form.songNameMatchMode = $any($event.target).value"
             >
-              <option value="partial">Partial Match</option>
-              <option value="exact">Exact Match</option>
-              <option value="partial-case">Partial + Case</option>
-              <option value="exact-case">Exact + Case</option>
+              @for (option of matchModeOptions; track option.value) {
+                <option [value]="option.value">{{ option.label }}</option>
+              }
             </select>
           </span>
         </div>
@@ -237,21 +237,20 @@
               type="search"
               maxlength="500"
               placeholder="Search by artist..."
-              [value]="artistFilter"
+              [value]="form.artist"
               (keyup.enter)="submitSearch()"
-              (input)="artistFilter = artistFilterInput.value"
+              (input)="form.artist = artistFilterInput.value"
             />
             <select
               id="search-adv-select-artist-match"
               class="app-select advanced-search-match-select"
               title="Choose how the artist search should match"
-              [value]="artistMatchMode"
-              (change)="artistMatchMode = $any($event.target).value"
+              [value]="form.artistMatchMode"
+              (change)="form.artistMatchMode = $any($event.target).value"
             >
-              <option value="partial">Partial Match</option>
-              <option value="exact">Exact Match</option>
-              <option value="partial-case">Partial + Case</option>
-              <option value="exact-case">Exact + Case</option>
+              @for (option of matchModeOptions; track option.value) {
+                <option [value]="option.value">{{ option.label }}</option>
+              }
             </select>
           </span>
         </div>
@@ -265,21 +264,20 @@
               type="search"
               maxlength="500"
               placeholder="Search by composer..."
-              [value]="composerFilter"
+              [value]="form.composer"
               (keyup.enter)="submitSearch()"
-              (input)="composerFilter = composerFilterInput.value"
+              (input)="form.composer = composerFilterInput.value"
             />
             <select
               id="search-adv-select-composer-match"
               class="app-select advanced-search-match-select"
               title="Choose how the composer search should match"
-              [value]="composerMatchMode"
-              (change)="composerMatchMode = $any($event.target).value"
+              [value]="form.composerMatchMode"
+              (change)="form.composerMatchMode = $any($event.target).value"
             >
-              <option value="partial">Partial Match</option>
-              <option value="exact">Exact Match</option>
-              <option value="partial-case">Partial + Case</option>
-              <option value="exact-case">Exact + Case</option>
+              @for (option of matchModeOptions; track option.value) {
+                <option [value]="option.value">{{ option.label }}</option>
+              }
             </select>
           </span>
         </div>
@@ -292,26 +290,23 @@
                 class="app-input advanced-search-input"
                 type="text"
                 maxlength="500"
-                [attr.inputmode]="advancedLookupType === 'random' ? 'numeric' : null"
-                [placeholder]="advancedLookupPlaceholder()"
-                [value]="advancedLookupValue"
+                [attr.inputmode]="getAdvancedLookupOption(form.advancedLookupType).inputMode"
+                [placeholder]="getAdvancedLookupOption(form.advancedLookupType).placeholder"
+                [value]="form.advancedLookupValue"
                 (keyup.enter)="submitSearch()"
-                (input)="advancedLookupValue = advancedLookupInput.value"
+                (input)="form.advancedLookupValue = advancedLookupInput.value"
               />
               <select
                 id="search-adv-select-lookup-type"
                 class="app-select advanced-search-lookup-select"
                 title="Choose a lookup field"
                 aria-label="Choose a lookup field"
-                [value]="advancedLookupType"
-                (change)="advancedLookupType = $any($event.target).value"
+                [value]="form.advancedLookupType"
+                (change)="form.advancedLookupType = $any($event.target).value"
               >
-                <option value="season">Season</option>
-                <option value="ann-ids">ANN ID</option>
-                <option value="mal-ids">MAL ID</option>
-                <option value="ann-song-ids">ANN Song ID</option>
-                <option value="amq-song-ids">AMQ Song ID</option>
-                <option value="random">Random # Songs</option>
+                @for (option of advancedLookupOptions; track option.value) {
+                  <option [value]="option.value">{{ option.label }}</option>
+                }
               </select>
             </span>
           </div>
@@ -330,8 +325,8 @@
             <input
               id="search-adv-checkbox-composer-arrangement"
               type="checkbox"
-              (change)="composerFilterArrangement = !composerFilterArrangement"
-              [checked]="composerFilterArrangement"
+              (change)="form.composerArrangement = !form.composerArrangement"
+              [checked]="form.composerArrangement"
             />
             Include arrangement credits
           </label>
@@ -344,8 +339,8 @@
             <input
               id="search-adv-checkbox-include-no-links"
               type="checkbox"
-              (change)="includeNoLinks = !includeNoLinks"
-              [checked]="includeNoLinks"
+              (change)="form.filters.includeNoLinks = !form.filters.includeNoLinks"
+              [checked]="form.filters.includeNoLinks"
             />
             Include songs with no links
           </label>
@@ -356,8 +351,8 @@
           <select
             id="search-select-filter-combination"
             class="app-select advanced-search-select"
-            [value]="searchCombination"
-            (change)="searchCombination = $any($event.target).value"
+            [value]="form.combination"
+            (change)="form.combination = $any($event.target).value"
           >
             <option value="or" title="A song needs to match at least one search field">
               Any field (OR)
@@ -384,8 +379,8 @@
               min="0"
               step="1"
               (keyup.enter)="submitSearch()"
-              (input)="maximumOtherPeople = maximumOtherPeopleInput.value"
-              [value]="maximumOtherPeople"
+              (input)="form.maximumOtherPeople = maximumOtherPeopleInput.value"
+              [value]="form.maximumOtherPeople"
             />
           </label>
 
@@ -404,8 +399,8 @@
               min="0"
               step="1"
               (keyup.enter)="submitSearch()"
-              (input)="minimumGroupMembers = minimumGroupMembersInput.value"
-              [value]="minimumGroupMembers"
+              (input)="form.minimumGroupMembers = minimumGroupMembersInput.value"
+              [value]="form.minimumGroupMembers"
             />
           </label>
         </div>
@@ -414,8 +409,8 @@
           <input
             id="search-adv-checkbox-ignore-duplicates"
             type="checkbox"
-            (change)="ignoreDuplicate = !ignoreDuplicate"
-            [checked]="ignoreDuplicate"
+            (change)="form.ignoreDuplicate = !form.ignoreDuplicate"
+            [checked]="form.ignoreDuplicate"
           />
           Ignore duplicates
         </label>
@@ -424,16 +419,17 @@
       <section class="advanced-search-section" aria-labelledby="advanced-search-types-heading">
         <div class="advanced-search-heading-row">
           <h2 id="advanced-search-types-heading" class="advanced-search-heading">Song Filters</h2>
-          <button
+          <a
             id="search-adv-help-filters"
-            type="button"
             class="app-icon-button search-help-button advanced-search-filter-help"
             title="Help understanding filters"
             aria-label="Help understanding filters"
-            (click)="openFiltersHelp()"
+            href="https://github.com/xSardine/AMQ-Artists-DB#filters"
+            target="_blank"
+            rel="noopener noreferrer"
           >
             <i class="fa fa-question-circle" aria-hidden="true"></i>
-          </button>
+          </a>
         </div>
 
         <div class="advanced-search-filter-row">
@@ -443,8 +439,8 @@
               <input
                 id="search-adv-checkbox-op"
                 type="checkbox"
-                (change)="showOpenings = !showOpenings"
-                [checked]="showOpenings"
+                (change)="form.filters.openings = !form.filters.openings"
+                [checked]="form.filters.openings"
               />
               OP
             </label>
@@ -452,8 +448,8 @@
               <input
                 id="search-adv-checkbox-ed"
                 type="checkbox"
-                (change)="showEndings = !showEndings"
-                [checked]="showEndings"
+                (change)="form.filters.endings = !form.filters.endings"
+                [checked]="form.filters.endings"
               />
               ED
             </label>
@@ -461,8 +457,8 @@
               <input
                 id="search-adv-checkbox-ins"
                 type="checkbox"
-                (change)="showInserts = !showInserts"
-                [checked]="showInserts"
+                (change)="form.filters.inserts = !form.filters.inserts"
+                [checked]="form.filters.inserts"
               />
               INS
             </label>
@@ -476,8 +472,8 @@
               <input
                 id="search-adv-checkbox-normal-broadcasts"
                 type="checkbox"
-                (change)="showNormalBroadcasts = !showNormalBroadcasts"
-                [checked]="showNormalBroadcasts"
+                (change)="form.filters.normalBroadcasts = !form.filters.normalBroadcasts"
+                [checked]="form.filters.normalBroadcasts"
               />
               Normal
             </label>
@@ -485,8 +481,8 @@
               <input
                 id="search-adv-checkbox-dubs"
                 type="checkbox"
-                (change)="showDubs = !showDubs"
-                [checked]="showDubs"
+                (change)="form.filters.dubs = !form.filters.dubs"
+                [checked]="form.filters.dubs"
               />
               Dubs
             </label>
@@ -494,8 +490,8 @@
               <input
                 id="search-adv-checkbox-rebroadcasts"
                 type="checkbox"
-                (change)="showRebroadcasts = !showRebroadcasts"
-                [checked]="showRebroadcasts"
+                (change)="form.filters.rebroadcasts = !form.filters.rebroadcasts"
+                [checked]="form.filters.rebroadcasts"
               />
               Rebroadcasts
             </label>
@@ -509,8 +505,8 @@
               <input
                 id="search-adv-checkbox-standard"
                 type="checkbox"
-                (change)="showStandards = !showStandards"
-                [checked]="showStandards"
+                (change)="form.filters.standards = !form.filters.standards"
+                [checked]="form.filters.standards"
               />
               Standard
             </label>
@@ -518,8 +514,8 @@
               <input
                 id="search-adv-checkbox-character"
                 type="checkbox"
-                (change)="showCharacters = !showCharacters"
-                [checked]="showCharacters"
+                (change)="form.filters.characters = !form.filters.characters"
+                [checked]="form.filters.characters"
               />
               Character
             </label>
@@ -527,8 +523,8 @@
               <input
                 id="search-adv-checkbox-chanting"
                 type="checkbox"
-                (change)="showChantings = !showChantings"
-                [checked]="showChantings"
+                (change)="form.filters.chantings = !form.filters.chantings"
+                [checked]="form.filters.chantings"
               />
               Chanting
             </label>
@@ -536,8 +532,8 @@
               <input
                 id="search-adv-checkbox-instrumental"
                 type="checkbox"
-                (change)="showInstrumentals = !showInstrumentals"
-                [checked]="showInstrumentals"
+                (change)="form.filters.instrumentals = !form.filters.instrumentals"
+                [checked]="form.filters.instrumentals"
               />
               Instrumental
             </label>
@@ -551,8 +547,8 @@
               <input
                 id="search-adv-checkbox-tv"
                 type="checkbox"
-                (change)="showTv = !showTv"
-                [checked]="showTv"
+                (change)="form.filters.tv = !form.filters.tv"
+                [checked]="form.filters.tv"
               />
               TV
             </label>
@@ -560,8 +556,8 @@
               <input
                 id="search-adv-checkbox-movie"
                 type="checkbox"
-                (change)="showMovie = !showMovie"
-                [checked]="showMovie"
+                (change)="form.filters.movie = !form.filters.movie"
+                [checked]="form.filters.movie"
               />
               Movie
             </label>
@@ -569,8 +565,8 @@
               <input
                 id="search-adv-checkbox-ova"
                 type="checkbox"
-                (change)="showOva = !showOva"
-                [checked]="showOva"
+                (change)="form.filters.ova = !form.filters.ova"
+                [checked]="form.filters.ova"
               />
               OVA
             </label>
@@ -578,8 +574,8 @@
               <input
                 id="search-adv-checkbox-ona"
                 type="checkbox"
-                (change)="showOna = !showOna"
-                [checked]="showOna"
+                (change)="form.filters.ona = !form.filters.ona"
+                [checked]="form.filters.ona"
               />
               ONA
             </label>
@@ -587,8 +583,8 @@
               <input
                 id="search-adv-checkbox-special"
                 type="checkbox"
-                (change)="showSpecial = !showSpecial"
-                [checked]="showSpecial"
+                (change)="form.filters.special = !form.filters.special"
+                [checked]="form.filters.special"
               />
               Special
             </label>
@@ -596,8 +592,8 @@
               <input
                 id="search-adv-checkbox-other"
                 type="checkbox"
-                (change)="showOther = !showOther"
-                [checked]="showOther"
+                (change)="form.filters.other = !form.filters.other"
+                [checked]="form.filters.other"
               />
               Other
             </label>
@@ -616,9 +612,9 @@
                 type="text"
                 maxlength="11"
                 placeholder="Season Year"
-                [value]="seasonRangeStart"
+                [value]="form.seasonRangeStart"
                 (keyup.enter)="submitSearch()"
-                (input)="seasonRangeStart = seasonRangeStartInput.value"
+                (input)="form.seasonRangeStart = seasonRangeStartInput.value"
               />
             </label>
             <label for="search-adv-input-season-end">
@@ -630,9 +626,9 @@
                 type="text"
                 maxlength="11"
                 placeholder="Season Year"
-                [value]="seasonRangeEnd"
+                [value]="form.seasonRangeEnd"
                 (keyup.enter)="submitSearch()"
-                (input)="seasonRangeEnd = seasonRangeEndInput.value"
+                (input)="form.seasonRangeEnd = seasonRangeEndInput.value"
               />
             </label>
           </div>

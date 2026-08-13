@@ -1,13 +1,12 @@
 import { effect, inject, Injectable, Injector, untracked } from '@angular/core';
-import { AudioPlaybackService } from '../core/services/audio-playback.service';
-import { DistServerService } from '../core/services/dist-server.service';
+import { AudioPlaybackService } from '../audio/audio-playback.service';
+import { AppStorageService } from '../core/services/app-storage.service';
 import { ModalService } from '../core/services/modal.service';
 import { NotificationService } from '../core/services/notification.service';
 import { RankedStatusService } from '../core/services/ranked-status.service';
-import { SongSearchController } from '../core/services/song-search-controller.service';
-import { ThemeService } from '../core/services/theme.service';
 import { UserPreferencesService } from '../core/services/user-preferences.service';
 import { PlaylistService } from '../playlist/playlist.service';
+import { SongSearchController } from '../search/song-search-controller.service';
 import { SettingsTabRegistryService } from '../settings/settings-tab-registry.service';
 import { SongTableController } from '../song-table/song-table.controller';
 
@@ -20,7 +19,6 @@ export class AnisongDBApiService {
 
   private readonly services = Object.freeze({
     playback: inject(AudioPlaybackService),
-    distServers: inject(DistServerService),
     modals: inject(ModalService),
     notifications: inject(NotificationService),
     playlists: inject(PlaylistService),
@@ -28,8 +26,8 @@ export class AnisongDBApiService {
     rankedStatus: inject(RankedStatusService),
     searches: inject(SongSearchController),
     settingsTabs: inject(SettingsTabRegistryService),
+    storage: inject(AppStorageService),
     table: inject(SongTableController),
-    themes: inject(ThemeService),
   });
 
   readonly api = Object.freeze({

@@ -29,7 +29,7 @@
     class="app-icon-button toolbar-icon-button"
     title="Playlists"
     aria-label="Open playlists"
-    (click)="playlistsRequested.emit()"
+    (click)="modals.open({ type: 'playlists' })"
   >
     <i class="fa fa-list" aria-hidden="true"></i>
   </button>
@@ -39,7 +39,7 @@
     class="app-icon-button toolbar-icon-button"
     title="Settings"
     aria-label="Open settings"
-    (click)="settingsRequested.emit()"
+    (click)="modals.open({ type: 'settings' })"
   >
     <i class="fa fa-cog" aria-hidden="true"></i>
   </button>
