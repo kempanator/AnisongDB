@@ -1,6 +1,6 @@
 import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 
-export type NotificationState = {
+type NotificationState = {
   message: string;
   phase: 'visible' | 'exiting';
 };

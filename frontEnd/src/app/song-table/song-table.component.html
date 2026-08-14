@@ -1,9 +1,3 @@
-@if (activeSong(); as activeSong) {
-  <app-song-info-modal
-    [song]="activeSong"
-  />
-}
-
 @if (songTable() || searchErrorMessage()) {
   <div class="table-controls">
     <div class="table-controls-start">
@@ -31,26 +25,49 @@
           type="button"
           class="app-button app-button--primary"
           title="Shuffle table order"
-          (click)="table.shuffle()"
+          (click)="workspace.shuffle()"
         >
           <i class="fa fa-random" aria-hidden="true"></i>
           Shuffle
         </button>
         <button id="column-settings-toggle" type="button" class="app-button app-button--primary" title="Column settings" (click)="toggleColumnSettings($event)">
-          Columns ({{ tableHeaders().length }}/{{ availableColumns.length }})
+          Columns ({{ tableHeaders().length }}/{{ availableColumns().length }})
         </button>
 
         @if (showColumnSettings()) {
           <div id="column-settings-panel" class="app-floating-panel column-settings-panel">
-            @for (column of availableColumns; track column.id) {
-              <label class="column-setting-row">
-                <input
-                  type="checkbox"
-                  [checked]="table.isVisible(column.id)"
-                  (change)="table.setVisible(column.id, $any($event.target).checked)"
-                />
-                {{ column.visibilityLabel ?? column.header }}
-              </label>
+            @for (column of availableColumns(); track column.id) {
+              <div
+                class="column-setting-row"
+                [class.column-dragging]="isDraggingColumn(column.id)"
+                [class.column-drag-over-before]="isColumnDragOverBefore(column.id)"
+                [class.column-drag-over-after]="isColumnDragOverAfter(column.id)"
+                (dragover)="onColumnDragOver($event, column.id)"
+                (drop)="onColumnDrop($event, column.id)"
+              >
+                <label class="column-setting-toggle">
+                  <input
+                    type="checkbox"
+                    [checked]="table.isVisible(column.id)"
+                    (change)="table.setVisible(column.id, $any($event.target).checked)"
+                  />
+                  {{ column.visibilityLabel ?? column.header }}
+                </label>
+                <button
+                  type="button"
+                  class="column-drag-handle"
+                  draggable="true"
+                  title="Drag to reorder column"
+                  [attr.aria-label]="'Drag to reorder ' + column.header + ' column'"
+                  (dragstart)="onColumnDragStart($event, column.id)"
+                  (dragend)="onColumnDragEnd()"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22px" height="22px"
+                  fill="currentColor" aria-hidden="true">
+                    <path d="M20 9H4v2h16V9zM4 15h16v-2H4v2z"/>
+                  </svg>
+                </button>
+              </div>
             }
           </div>
         }
@@ -310,19 +327,31 @@
                     [id]="'table-row-' + rowIndex + '-delete'"
                     title="Delete song from list"
                     aria-label="Delete song from list"
-                    (click)="table.remove(song)"
+                    (click)="workspace.remove(song)"
                   >
                     <i class="fa fa-trash" aria-hidden="true"></i>
                   </button>
                 }
 
                 @default {
-                  <span
-                    class="app-copyable"
-                    title="Copy to clipboard"
-                    (click)="clipboard.copy($event, getColumnCopyValue(song, column))"
-                    >{{ getColumnDisplayValue(song, column) }}</span
-                  >
+                  @if (column.renderCell) {
+                    <span
+                      class="table-extension-cell"
+                      [songTableExtensionCell]="column"
+                      [extensionCellSong]="song"
+                      [extensionCellRowIndex]="rowIndex"
+                      [extensionCellAnimeTitleLanguage]="animeTitleLang()"
+                    ></span>
+                  } @else if (column.copy) {
+                    <span
+                      class="app-copyable"
+                      title="Copy to clipboard"
+                      (click)="clipboard.copy($event, getColumnCopyValue(song, column))"
+                      >{{ getColumnDisplayValue(song, column) }}</span
+                    >
+                  } @else {
+                    {{ getColumnDisplayValue(song, column) }}
+                  }
                 }
               }
               </td>
@@ -332,10 +361,4 @@
       </tbody>
     </table>
   </div>
-}
-
-@if (songToAddToPlaylist(); as song) {
-  <app-song-playlist-picker
-    [song]="song"
-  />
 }

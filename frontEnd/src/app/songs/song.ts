@@ -1,4 +1,4 @@
-import { parseNonNegativeInteger } from '../utils/number';
+import { parseNonNegativeInteger } from '../shared/number';
 
 export interface SongCredit {
   id: number;
@@ -16,7 +16,7 @@ export interface AnimeListLinks {
 }
 
 /** Mirrors the backend SongEntry response model. */
-export interface SongRow {
+export interface Song {
   annId: number;
   annSongId: number;
   amqSongId: number;
@@ -45,7 +45,7 @@ export interface SongRow {
   arrangers: SongCredit[];
 }
 
-type SongPlaybackFields = Pick<SongRow, 'audio' | 'MQ' | 'HQ'>;
+type SongPlaybackFields = Pick<Song, 'audio' | 'MQ' | 'HQ'>;
 
 /**
  * Prefer the dedicated MP3, then fall back to the lower-bandwidth video files.
@@ -61,6 +61,6 @@ export function hasSongPlaybackSource(song: SongPlaybackFields): boolean {
 }
 
 /** ANN song IDs are non-negative; the backend uses -1 for "missing". */
-export function hasAnnSongId(song: Pick<SongRow, 'annSongId'>): boolean {
+export function hasAnnSongId(song: Pick<Song, 'annSongId'>): boolean {
   return parseNonNegativeInteger(song.annSongId) !== null;
 }

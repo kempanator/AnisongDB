@@ -1,17 +1,7 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
-import { AppStorageService } from '../core/services/app-storage.service';
-import { parseNonNegativeInteger } from '../core/utils/number';
-import { downloadJsonFile, sanitizeFileNameSegment } from '../shared/json-file';
-import {
-  DEFAULT_PLAYLIST_SORT,
-  parsePlaylistSort,
-  sortPlaylists,
-  type Playlist,
-  type PlaylistAddResult,
-  type PlaylistAppendResult,
-  type PlaylistSort,
-  type PlaylistToggleResult,
-} from './playlist';
+import { AppStorageService } from '../core/app-storage.service';
+import { parseNonNegativeInteger } from '../shared/number';
+import { DEFAULT_PLAYLIST_SORT, parsePlaylistSort, sortPlaylists, type Playlist, type PlaylistAddResult, type PlaylistAppendResult, type PlaylistSort, type PlaylistToggleResult } from './playlist';
 
 export const PLAYLIST_MAX_SONGS = 500;
 
@@ -240,18 +230,6 @@ export class PlaylistService {
     };
     visit(value, true);
     return ids;
-  }
-
-  exportPlaylist(playlist: Playlist): void {
-    downloadJsonFile(
-      `${sanitizeFileNameSegment(playlist.name) || 'playlist'}-playlist.json`,
-      {
-        name: playlist.name,
-        createdOn: playlist.createdOn,
-        annSongIds: playlist.annSongIds,
-      },
-      2,
-    );
   }
 
   private loadPlaylists(): Playlist[] {

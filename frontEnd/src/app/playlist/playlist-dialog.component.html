@@ -76,7 +76,7 @@
       <div class="playlist-actions-menu-separator" role="separator"></div>
       <button type="button" class="app-button app-button--accent app-button--full" role="menuitem" (click)="rename(playlist)"><i class="fa fa-pencil" aria-hidden="true"></i> Rename playlist</button>
       <button type="button" class="app-button app-button--accent app-button--full" role="menuitem" (click)="duplicate(playlist)"><i class="fa fa-clone" aria-hidden="true"></i> Duplicate playlist</button>
-      <button type="button" class="app-button app-button--accent app-button--full" role="menuitem" (click)="playlistService.exportPlaylist(playlist)"><i class="fa fa-download" aria-hidden="true"></i> Export playlist</button>
+      <button type="button" class="app-button app-button--accent app-button--full" role="menuitem" (click)="exportPlaylist(playlist)"><i class="fa fa-download" aria-hidden="true"></i> Export playlist</button>
       <button type="button" class="app-button app-button--danger app-button--full" role="menuitem" (click)="deletePlaylist(playlist)"><i class="fa fa-trash" aria-hidden="true"></i> Delete playlist</button>
     </div>
   }

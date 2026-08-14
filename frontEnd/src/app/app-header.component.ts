@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { ModalService } from './core/services/modal.service';
-import type { AnimeTitleLanguage } from './core/models/user-preferences';
-import { UserPreferencesService } from './core/services/user-preferences.service';
+import { AppModalService } from './modals/app-modal.service';
+import type { AnimeTitleLanguage } from './settings/user-preferences';
+import { UserPreferencesService } from './settings/user-preferences.service';
 
 @Component({
   selector: 'app-header',
@@ -11,7 +11,7 @@ import { UserPreferencesService } from './core/services/user-preferences.service
 })
 export class AppHeaderComponent {
   private readonly userPreferencesService = inject(UserPreferencesService);
-  readonly modals = inject(ModalService);
+  readonly modals = inject(AppModalService);
   readonly preferences = this.userPreferencesService.preferences;
   readonly animeTitleLang = computed(() => this.preferences().animeTitleLanguage);
 

@@ -1,7 +1,7 @@
 import { afterNextRender, ChangeDetectionStrategy, Component, ElementRef, input, OnDestroy, output, viewChild } from '@angular/core';
 import { ClipboardPopupOutletComponent } from './clipboard-popup-outlet.component';
 
-export type ModalSize = 'compact' | 'medium' | 'wide';
+type ModalSize = 'compact' | 'medium' | 'wide';
 
 let nextModalId = 0;
 

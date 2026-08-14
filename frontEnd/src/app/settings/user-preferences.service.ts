@@ -1,12 +1,6 @@
 import { inject, Injectable, signal } from '@angular/core';
-import {
-  DEFAULT_USER_PREFERENCES,
-  getDistServerOption,
-  normalizeUserPreferences,
-  USER_PREFERENCE_KEYS,
-  type UserPreferences,
-} from '../models/user-preferences';
-import { AppStorageService } from './app-storage.service';
+import { DEFAULT_USER_PREFERENCES, getDistServerOption, normalizeUserPreferences, USER_PREFERENCE_KEYS, type UserPreferences } from './user-preferences';
+import { AppStorageService } from '../core/app-storage.service';
 
 @Injectable({
   providedIn: 'root',

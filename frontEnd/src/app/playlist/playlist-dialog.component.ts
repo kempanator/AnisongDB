@@ -1,12 +1,13 @@
 import { afterNextRender, ChangeDetectionStrategy, Component, computed, ElementRef, inject, Injector, signal, viewChild } from '@angular/core';
-import { formatSongCount } from '../core/utils/number';
-import { ModalService } from '../core/services/modal.service';
-import { NotificationService } from '../core/services/notification.service';
+import { downloadJsonFile, readJsonFile, sanitizeFileNameSegment } from '../shared/json-file';
+import { formatSongCount } from '../shared/number';
+import { AppModalService } from '../modals/app-modal.service';
+import { NotificationService } from '../shared/notification.service';
 import { SongSearchController } from '../search/song-search-controller.service';
 import { ModalShellComponent } from '../shared/modal-shell.component';
+import { SongWorkspaceStore } from '../songs/song-workspace.store';
 import { PLAYLIST_MAX_SONGS, PlaylistService } from './playlist.service';
 import { PLAYLIST_SORT_OPTIONS, type Playlist } from './playlist';
-import { readJsonFile } from '../shared/json-file';
 
 type ActionsMenuState = {
   playlistId: string;
@@ -26,7 +27,7 @@ type ActionsMenuState = {
   },
 })
 export class PlaylistDialogComponent {
-  readonly modals = inject(ModalService);
+  readonly modals = inject(AppModalService);
   readonly playlistService = inject(PlaylistService);
   readonly sortedPlaylists = this.playlistService.sortedPlaylists;
   readonly playlistSortOptions = PLAYLIST_SORT_OPTIONS;
@@ -41,12 +42,13 @@ export class PlaylistDialogComponent {
       : null;
   });
   readonly actionsMenuPosition = computed(() => this.actionsMenuState()?.position ?? null);
-  private readonly songs = inject(SongSearchController);
+  private readonly searches = inject(SongSearchController);
+  private readonly workspace = inject(SongWorkspaceStore);
   private readonly notifications = inject(NotificationService);
   private readonly injector = inject(Injector);
 
   createPlaylist(input: HTMLInputElement): void {
-    const ids = this.playlistService.annSongIdsFromRows(this.songs.songList() ?? []);
+    const ids = this.playlistService.annSongIdsFromRows(this.workspace.songs() ?? []);
     const playlist = this.playlistService.createPlaylist(input.value, ids);
     if (!playlist) {
       this.notifications.show('Enter a playlist name.');
@@ -59,7 +61,7 @@ export class PlaylistDialogComponent {
   }
 
   loadPlaylist(playlist: Playlist): void {
-    this.songs.loadPlaylist(playlist.annSongIds, 'saved');
+    this.searches.loadPlaylist(playlist.annSongIds, 'saved');
     this.modals.close('playlists');
   }
 
@@ -170,8 +172,20 @@ export class PlaylistDialogComponent {
     this.notifications.show(duplicate ? `Created “${duplicate.name}”.` : 'Could not duplicate that playlist.');
   }
 
+  exportPlaylist(playlist: Playlist): void {
+    downloadJsonFile(
+      `${sanitizeFileNameSegment(playlist.name) || 'playlist'}-playlist.json`,
+      {
+        name: playlist.name,
+        createdOn: playlist.createdOn,
+        annSongIds: playlist.annSongIds,
+      },
+      2,
+    );
+  }
+
   appendTable(playlist: Playlist): void {
-    const ids = this.playlistService.annSongIdsFromRows(this.songs.songList() ?? [], Infinity);
+    const ids = this.playlistService.annSongIdsFromRows(this.workspace.songs() ?? [], Infinity);
     if (!ids.length) {
       this.notifications.show('There are no songs in the table to append.');
       return;
@@ -198,7 +212,7 @@ export class PlaylistDialogComponent {
   }
 
   replaceWithTable(playlist: Playlist): void {
-    const ids = this.playlistService.annSongIdsFromRows(this.songs.songList() ?? []);
+    const ids = this.playlistService.annSongIdsFromRows(this.workspace.songs() ?? []);
     if (!ids.length) {
       this.notifications.show('There are no songs in the table to replace this playlist with.');
       return;
@@ -243,7 +257,7 @@ export class PlaylistDialogComponent {
         this.notifications.show('No ANN Song IDs were found in that JSON file.');
         return;
       }
-      this.songs.loadPlaylist(ids, 'import');
+      this.searches.loadPlaylist(ids, 'import');
       this.modals.close('playlists');
     } catch (_error) {
       this.notifications.show('Could not read that JSON file.');

@@ -1,6 +1,6 @@
-import type { SongRow } from '../core/models/song';
-import type { AnimeTitleLanguage } from '../core/models/user-preferences';
-import { formatSongLength, getBroadcastMetadata, parseSongType } from '../core/utils/song-metadata';
+import type { Song } from '../songs/song';
+import type { AnimeTitleLanguage } from '../settings/user-preferences';
+import { formatSongLength, getBroadcastMetadata, parseSongType } from '../songs/song-metadata';
 import { collectPersonIds } from './song-credits';
 
 export type StatBreakdownEntry = {
@@ -9,13 +9,13 @@ export type StatBreakdownEntry = {
   percent: number;
 };
 
-export type StatRankingEntry = {
+type StatRankingEntry = {
   key: number;
   label: string;
   count: number;
 };
 
-export type TableStats = {
+type TableStats = {
   songCount: number;
   uniqueAnime: number;
   uniqueArtists: number;
@@ -67,7 +67,7 @@ export function formatAvgLength(seconds: number | null): string {
 }
 
 export function computeTableStats(
-  songs: readonly SongRow[] | null | undefined,
+  songs: readonly Song[] | null | undefined,
   animeTitleLanguage: AnimeTitleLanguage = 'JP',
 ): TableStats {
   if (!songs?.length) return { ...EMPTY_TABLE_STATS };

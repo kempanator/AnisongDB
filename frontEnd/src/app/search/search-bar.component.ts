@@ -1,8 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { RANKED_REGIONS, RANKED_SCHEDULE_LABEL, RankedStatusService, type RankedStatus } from '../core/services/ranked-status.service';
-import { NotificationService } from '../core/services/notification.service';
-import { UserPreferencesService } from '../core/services/user-preferences.service';
+import { RANKED_REGIONS, RANKED_SCHEDULE_LABEL, RankedStatusService, type RankedStatus } from '../shared/ranked-status.service';
+import { NotificationService } from '../shared/notification.service';
+import { UserPreferencesService } from '../settings/user-preferences.service';
 import { downloadJsonFile, sanitizeFileNameSegment } from '../shared/json-file';
+import { SongWorkspaceStore } from '../songs/song-workspace.store';
 import { ADVANCED_LOOKUP_OPTIONS, buildSearchCommand, createDefaultSearchFormState, getAdvancedLookupOption, SEARCH_MATCH_MODE_OPTIONS } from './search-query';
 import { SongSearchController } from './song-search-controller.service';
 
@@ -13,7 +14,8 @@ import { SongSearchController } from './song-search-controller.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SearchBarComponent {
-  readonly songSearchController = inject(SongSearchController);
+  private readonly searches = inject(SongSearchController);
+  private readonly workspace = inject(SongWorkspaceStore);
   private readonly userPreferencesService = inject(UserPreferencesService);
   private readonly rankedStatusService = inject(RankedStatusService);
   private readonly notifications = inject(NotificationService);
@@ -53,7 +55,7 @@ export class SearchBarComponent {
       return;
     }
 
-    this.songSearchController.runSearch(result.command);
+    this.searches.runSearch(result.command);
   }
 
   toggleAdvancedSearchFieldMode(): void {
@@ -82,7 +84,7 @@ export class SearchBarComponent {
   downloadJson(): void {
     downloadJsonFile(
       this.buildDownloadFileName(),
-      this.songSearchController.songList() ?? [],
+      this.workspace.songs() ?? [],
     );
   }
 }

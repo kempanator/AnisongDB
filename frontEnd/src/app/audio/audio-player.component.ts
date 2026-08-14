@@ -1,7 +1,7 @@
 import { afterNextRender, ChangeDetectionStrategy, Component, computed, CUSTOM_ELEMENTS_SCHEMA, effect, ElementRef, inject, OnDestroy, viewChild } from '@angular/core';
 import { LocalMediaStorage, MediaPlayer } from 'vidstack';
-import { getSongPlaybackSource } from '../core/models/song';
-import { UserPreferencesService } from '../core/services/user-preferences.service';
+import { getSongPlaybackSource } from '../songs/song';
+import { UserPreferencesService } from '../settings/user-preferences.service';
 import { AudioPlaybackCommand, AudioPlaybackService } from './audio-playback.service';
 
 type ConfigurableMediaPlayer = MediaPlayer & {

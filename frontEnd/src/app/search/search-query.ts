@@ -1,5 +1,5 @@
-import { parseNonNegativeInteger } from '../core/utils/number';
-import { parseAnimeSeason } from '../core/utils/song-metadata';
+import { parseNonNegativeInteger } from '../shared/number';
+import { parseAnimeSeason } from '../songs/song-metadata';
 import { AnimeType, BroadcastType, SearchCommand, SongCategory, SongLinkType, SongSearchBody, SongType } from './search';
 
 const MAX_ID_SEARCH_COUNT = 500;
@@ -13,9 +13,9 @@ export const SEARCH_MATCH_MODE_OPTIONS = [
   { value: 'exact-case', label: 'Exact + Case' },
 ] as const;
 
-export type SearchMatchMode = typeof SEARCH_MATCH_MODE_OPTIONS[number]['value'];
-export type AdvancedSearchFieldMode = 'text' | 'lookup';
-export type SearchCombination = 'or' | 'and';
+type SearchMatchMode = typeof SEARCH_MATCH_MODE_OPTIONS[number]['value'];
+type AdvancedSearchFieldMode = 'text' | 'lookup';
+type SearchCombination = 'or' | 'and';
 
 type IdSearchBody = Pick<SongSearchBody, 'filters' | 'ignore_duplicate'>;
 
@@ -122,7 +122,7 @@ export const ADVANCED_LOOKUP_OPTIONS = [
   RANDOM_LOOKUP_OPTION,
 ] as const;
 
-export type AdvancedLookupType = typeof ADVANCED_LOOKUP_OPTIONS[number]['value'];
+type AdvancedLookupType = typeof ADVANCED_LOOKUP_OPTIONS[number]['value'];
 
 export function getAdvancedLookupOption(type: AdvancedLookupType) {
   return ADVANCED_LOOKUP_OPTIONS.find((option) => option.value === type)
@@ -134,7 +134,7 @@ type ParsedIdListQuery = {
   ids: number[];
 };
 
-export type SearchFilterSelection = {
+type SearchFilterSelection = {
   openings: boolean;
   endings: boolean;
   inserts: boolean;
@@ -154,7 +154,7 @@ export type SearchFilterSelection = {
   includeNoLinks: boolean;
 };
 
-export type SearchFormState = {
+type SearchFormState = {
   main: string;
   mainPartialMatch: boolean;
   anime: string;
@@ -178,7 +178,7 @@ export type SearchFormState = {
   filters: SearchFilterSelection;
 };
 
-export type SearchCommandBuildResult =
+type SearchCommandBuildResult =
   | { command: SearchCommand }
   | { error: string };
 

@@ -1,15 +1,15 @@
 import { afterRenderEffect, ChangeDetectionStrategy, Component, computed, ElementRef, inject, input, viewChild } from '@angular/core';
-import { hasAnnSongId, SongCredit, SongRow } from '../core/models/song';
-import { formatSongLength, getBroadcastMetadata } from '../core/utils/song-metadata';
-import { ClipboardService } from '../core/services/clipboard.service';
-import { ModalService } from '../core/services/modal.service';
-import { RankedStatusService } from '../core/services/ranked-status.service';
-import { UserPreferencesService } from '../core/services/user-preferences.service';
+import { hasAnnSongId, SongCredit, Song } from '../songs/song';
+import { formatSongLength, getBroadcastMetadata } from '../songs/song-metadata';
+import { ClipboardService } from '../shared/clipboard.service';
+import { AppModalService } from '../modals/app-modal.service';
+import { RankedStatusService } from '../shared/ranked-status.service';
+import { UserPreferencesService } from '../settings/user-preferences.service';
 import { SongSearchController } from '../search/song-search-controller.service';
 import { ModalShellComponent } from '../shared/modal-shell.component';
+import { SongWorkspaceStore } from '../songs/song-workspace.store';
 import { buildCreditSections, collectPersonIds, CreditSearchRole, creditSearchTitle } from './song-credits';
 import { ANIME_LIST_SITES, SONG_DIST_LINKS } from './song-links';
-import { SongTableController } from './song-table.controller';
 
 @Component({
   selector: 'app-song-info-modal',
@@ -20,19 +20,19 @@ import { SongTableController } from './song-table.controller';
   imports: [ModalShellComponent],
 })
 export class SongInfoModalComponent {
-  private readonly songSearchController = inject(SongSearchController);
+  private readonly searches = inject(SongSearchController);
   readonly clipboard = inject(ClipboardService);
   private readonly rankedStatusService = inject(RankedStatusService);
-  private readonly modalService = inject(ModalService);
+  private readonly modals = inject(AppModalService);
   readonly preferences = inject(UserPreferencesService);
-  private readonly table = inject(SongTableController);
+  private readonly workspace = inject(SongWorkspaceStore);
 
-  readonly song = input.required<SongRow>();
+  readonly song = input.required<Song>();
   readonly modalContent = viewChild<ElementRef<HTMLElement>>('modalContent');
 
   readonly rankedActive = this.rankedStatusService.active;
-  readonly rowIndex = computed(() => this.table.songs()?.indexOf(this.song()) ?? -1);
-  readonly totalRows = computed(() => this.table.songs()?.length ?? 0);
+  readonly rowIndex = computed(() => this.workspace.songs()?.indexOf(this.song()) ?? -1);
+  readonly totalRows = computed(() => this.workspace.songs()?.length ?? 0);
   readonly showAmqSongId = computed(() => this.preferences.preferences().showAmqSongId);
   readonly creditSearchTitle = creditSearchTitle;
 
@@ -83,15 +83,15 @@ export class SongInfoModalComponent {
   }
 
   close(): void {
-    this.modalService.close('song-info');
+    this.modals.close('song-info');
   }
 
   navigate(delta: number): void {
-    const songs = this.table.songs();
+    const songs = this.workspace.songs();
     const index = songs?.indexOf(this.song()) ?? -1;
     if (!songs || songs.length <= 1 || index < 0) return;
 
-    this.modalService.open({
+    this.modals.open({
       type: 'song-info',
       song: songs[(index + delta + songs.length) % songs.length],
     });
@@ -101,8 +101,8 @@ export class SongInfoModalComponent {
     event?.stopPropagation();
     const personIds = collectPersonIds(person);
     const searchStarted = role === 'artist'
-      ? this.songSearchController.searchArtistIds(personIds)
-      : this.songSearchController.searchComposerIds(personIds);
+      ? this.searches.searchArtistIds(personIds)
+      : this.searches.searchComposerIds(personIds);
 
     if (searchStarted) {
       this.close();
@@ -115,21 +115,21 @@ export class SongInfoModalComponent {
       return;
     }
 
-    if (this.songSearchController.searchSeason(season)) {
+    if (this.searches.searchSeason(season)) {
       this.close();
     }
   }
 
   searchAnnId(id: string | number, event?: MouseEvent) {
     event?.stopPropagation();
-    if (this.songSearchController.searchAnnIds([id])) {
+    if (this.searches.searchAnnIds([id])) {
       this.close();
     }
   }
 
   searchAmqSongId(id: string | number, event?: MouseEvent) {
     event?.stopPropagation();
-    if (this.songSearchController.searchAmqSongIds([id])) {
+    if (this.searches.searchAmqSongIds([id])) {
       this.close();
     }
   }

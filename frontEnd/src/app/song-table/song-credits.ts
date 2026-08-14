@@ -1,8 +1,8 @@
-import type { SongCredit, SongRow } from '../core/models/song';
+import type { SongCredit, Song } from '../songs/song';
 
 export type CreditSearchRole = 'artist' | 'composer';
 
-export type CreditSection = {
+type CreditSection = {
   title: string;
   people: SongCredit[];
   role: CreditSearchRole;
@@ -17,7 +17,7 @@ export function collectPersonIds(
   return entries.map((person) => person.id);
 }
 
-export function buildCreditSections(song: SongRow): CreditSection[] {
+export function buildCreditSections(song: Song): CreditSection[] {
   const sections: CreditSection[] = [
     // Artist entries commonly contain aliases, group memberships, and lineups.
     // Put simpler cards first so cards of similar height tend to share a grid

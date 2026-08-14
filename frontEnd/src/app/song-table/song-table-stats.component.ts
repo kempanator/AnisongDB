@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, model, signal } from '@angular/core';
-import { ClipboardService } from '../core/services/clipboard.service';
-import { RankedStatusService } from '../core/services/ranked-status.service';
-import { UserPreferencesService } from '../core/services/user-preferences.service';
+import { ClipboardService } from '../shared/clipboard.service';
+import { RankedStatusService } from '../shared/ranked-status.service';
+import { UserPreferencesService } from '../settings/user-preferences.service';
 import { SongSearchController } from '../search/song-search-controller.service';
-import { SongTableController } from './song-table.controller';
+import { SongWorkspaceStore } from '../songs/song-workspace.store';
 import { computeTableStats, formatAvgLength, StatBreakdownEntry } from './song-table-stats';
 
 type StatsTab = 'types' | 'anime' | 'artists' | 'difficulty';
@@ -25,12 +25,12 @@ type StatsSectionConfig = {
 export class SongTableStatsComponent {
   private readonly host = inject(ElementRef<HTMLElement>);
   private readonly clipboard = inject(ClipboardService);
-  private readonly songSearchController = inject(SongSearchController);
+  private readonly searches = inject(SongSearchController);
   private readonly rankedStatusService = inject(RankedStatusService);
-  private readonly table = inject(SongTableController);
+  private readonly workspace = inject(SongWorkspaceStore);
   private readonly preferences = inject(UserPreferencesService);
   readonly stats = computed(() => computeTableStats(
-    this.table.songs(),
+    this.workspace.songs(),
     this.preferences.preferences().animeTitleLanguage,
   ));
   readonly open = model(false);
@@ -56,7 +56,7 @@ export class SongTableStatsComponent {
 
   searchAnime(id: number, event: MouseEvent): void {
     event.stopPropagation();
-    if (this.songSearchController.searchAnnIds([id])) {
+    if (this.searches.searchAnnIds([id])) {
       this.open.set(false);
     }
   }
@@ -65,7 +65,7 @@ export class SongTableStatsComponent {
     event.stopPropagation();
     if (this.rankedActive()) return;
 
-    if (this.songSearchController.searchArtistIds([id])) {
+    if (this.searches.searchArtistIds([id])) {
       this.open.set(false);
     }
   }

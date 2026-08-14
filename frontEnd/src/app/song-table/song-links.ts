@@ -1,9 +1,9 @@
-import type { SongRow } from '../core/models/song';
+import type { Song } from '../songs/song';
 
 type AnimeListSite = {
   img: string;
   alt: string;
-  getUrl: (song: SongRow) => string | null;
+  getUrl: (song: Song) => string | null;
 };
 
 type SongDistLink = {

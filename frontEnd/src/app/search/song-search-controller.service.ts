@@ -1,47 +1,45 @@
-import { DestroyRef, inject, Injectable, signal } from '@angular/core';
+import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Subscription } from 'rxjs';
 import { SearchRequestService } from './search-request.service';
-import { SongRow } from '../core/models/song';
-import { NotificationService } from '../core/services/notification.service';
-import { formatSongCount } from '../core/utils/number';
-import { reorderSongsByAnnSongIds, sortSongsByDefault } from '../core/utils/song-ordering';
+import { NotificationService } from '../shared/notification.service';
+import { formatSongCount } from '../shared/number';
+import { reorderSongsByAnnSongIds, sortSongsByDefault } from '../songs/song-ordering';
+import { SongWorkspaceStore } from '../songs/song-workspace.store';
 import { SearchCommand, SongId } from './search';
 
-export type PlaylistLoadSource = 'import' | 'saved';
+type PlaylistLoadSource = 'import' | 'saved';
 
 type PlaylistLoad = {
   annSongIds: number[];
   source: PlaylistLoadSource;
 };
 
-export type SearchResultState = {
-  order: 'default' | 'playlist';
-};
+export type SearchRequestState =
+  | { status: 'idle' }
+  | { status: 'loading'; command: SearchCommand }
+  | { status: 'error'; message: string };
 
 /**
- * Owns search execution and the editable, exportable song-list order.
- * HTTP details stay in SearchRequestService; components interact with this
- * controller so cancellation, errors, and canonical ordering have one owner.
+ * Owns search request execution, cancellation, and errors. Successful results
+ * are committed to SongWorkspaceStore, which owns the current song collection.
  */
 @Injectable({ providedIn: 'root' })
 export class SongSearchController {
   private readonly requests = inject(SearchRequestService);
+  private readonly workspace = inject(SongWorkspaceStore);
   private readonly notifications = inject(NotificationService);
   private readonly destroyRef = inject(DestroyRef);
   // The key prevents an identical in-flight request from being restarted.
   // Completed searches are not cached or deduplicated.
   private activeSearch: { key: string; subscription: Subscription } | null = null;
-  private readonly songListSignal = signal<SongRow[] | null>(null);
-  private readonly searchErrorSignal = signal<string | null>(null);
-  private readonly latestResultSignal = signal<SearchResultState>({ order: 'default' });
+  private readonly requestStateSignal = signal<SearchRequestState>({ status: 'idle' });
 
-  readonly songList = this.songListSignal.asReadonly();
-  readonly searchError = this.searchErrorSignal.asReadonly();
-  // A fresh object is published for every completed result, even when its
-  // ordering matches the previous result. Consumers can react without a
-  // separate revision counter that must be kept in sync.
-  readonly latestResult = this.latestResultSignal.asReadonly();
+  readonly requestState = this.requestStateSignal.asReadonly();
+  readonly searchError = computed(() => {
+    const state = this.requestStateSignal();
+    return state.status === 'error' ? state.message : null;
+  });
 
   constructor() {
     this.destroyRef.onDestroy(() => this.activeSearch?.subscription.unsubscribe());
@@ -57,10 +55,6 @@ export class SongSearchController {
     if (searchKey === this.activeSearch?.key) return false;
     this.execute(command, null);
     return true;
-  }
-
-  replaceSongList(songList: SongRow[]): void {
-    this.songListSignal.set(songList);
   }
 
   searchSeason(season: string): boolean {
@@ -81,9 +75,9 @@ export class SongSearchController {
       // empty ID list. Apply the empty result locally instead of presenting a
       // normal playlist load as a request-validation failure.
       this.cancelActiveSearch();
-      this.searchErrorSignal.set(null);
+      this.requestStateSignal.set({ status: 'idle' });
       this.notifyPlaylistLoad(source, 0, 0);
-      this.publishResult([], 'playlist');
+      this.workspace.replace([], null);
       return;
     }
 
@@ -121,7 +115,7 @@ export class SongSearchController {
   ): void {
     const request = this.requests.request(command);
     this.cancelActiveSearch();
-    this.searchErrorSignal.set(null);
+    this.requestStateSignal.set({ status: 'loading', command });
     const searchKey = this.searchKey(command);
 
     const subscription = request.subscribe({
@@ -138,14 +132,23 @@ export class SongSearchController {
           );
         }
 
-        this.publishResult(nextSongList, playlistLoad ? 'playlist' : 'default');
+        this.workspace.replace(
+          nextSongList,
+          playlistLoad ? null : { column: 'annId', ascending: true },
+        );
       },
       error: (error: unknown) => {
-        this.searchErrorSignal.set(formatSearchError(error));
+        this.requestStateSignal.set({
+          status: 'error',
+          message: formatSearchError(error),
+        });
         logSearchError(error);
         this.finishSearch();
       },
-      complete: () => this.finishSearch(),
+      complete: () => {
+        this.requestStateSignal.set({ status: 'idle' });
+        this.finishSearch();
+      },
     });
     this.activeSearch = subscription.closed ? null : { key: searchKey, subscription };
   }
@@ -160,11 +163,6 @@ export class SongSearchController {
 
   private finishSearch(): void {
     this.activeSearch = null;
-  }
-
-  private publishResult(songList: SongRow[], order: SearchResultState['order']): void {
-    this.songListSignal.set(songList);
-    this.latestResultSignal.set({ order });
   }
 
   private searchKey(command: SearchCommand): string {

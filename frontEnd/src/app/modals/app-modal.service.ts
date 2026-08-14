@@ -1,16 +1,16 @@
 import { Injectable, signal, untracked } from '@angular/core';
-import { SongRow } from '../models/song';
+import { Song } from '../songs/song';
 
-export type AppModal =
+type AppModal =
   | { type: 'settings' }
   | { type: 'playlists' }
-  | { type: 'song-info'; song: SongRow }
-  | { type: 'playlist-picker'; song: SongRow };
+  | { type: 'song-info'; song: Song }
+  | { type: 'playlist-picker'; song: Song };
 
-export type AppModalType = AppModal['type'];
+type AppModalType = AppModal['type'];
 
 @Injectable({ providedIn: 'root' })
-export class ModalService {
+export class AppModalService {
   private readonly activeModal = signal<AppModal | null>(null);
   readonly active = this.activeModal.asReadonly();
 

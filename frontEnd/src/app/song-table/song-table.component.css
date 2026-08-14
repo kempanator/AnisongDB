@@ -71,11 +71,65 @@
 }
 
 .column-setting-row {
+  position: relative;
   display: flex;
   align-items: center;
+  gap: 6px;
+  padding: 2px;
+}
+
+.column-setting-toggle {
+  display: flex;
+  flex: 1;
+  align-items: center;
   gap: 8px;
-  padding: 4px 2px;
+  min-width: 0;
   cursor: pointer;
+}
+
+.column-drag-handle {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: grab;
+}
+
+.column-drag-handle:active {
+  cursor: grabbing;
+}
+
+.column-drag-handle:hover {
+  color: var(--text);
+}
+
+.column-setting-row.column-dragging {
+  opacity: 0.45;
+}
+
+.column-setting-row.column-drag-over-before::after,
+.column-setting-row.column-drag-over-after::after {
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: 2px;
+  background: var(--accent);
+  content: '';
+  pointer-events: none;
+}
+
+.column-setting-row.column-drag-over-before::after {
+  top: 0;
+  transform: translateY(-50%);
+}
+
+.column-setting-row.column-drag-over-after::after {
+  bottom: 0;
+  transform: translateY(50%);
 }
 
 .table-scroll {

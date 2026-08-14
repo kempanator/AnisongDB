@@ -1,10 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
-import { ModalService } from '../core/services/modal.service';
-import { NotificationService } from '../core/services/notification.service';
+import { AppModalService } from '../modals/app-modal.service';
+import { NotificationService } from '../shared/notification.service';
 import { PLAYLIST_TOGGLE_MESSAGES, PlaylistService } from '../playlist/playlist.service';
 import { ModalShellComponent } from '../shared/modal-shell.component';
-import { hasAnnSongId, SongRow } from '../core/models/song';
-import { formatSongCount } from '../core/utils/number';
+import { hasAnnSongId, Song } from '../songs/song';
+import { formatSongCount } from '../shared/number';
 
 @Component({
   selector: 'app-song-playlist-picker',
@@ -14,8 +14,8 @@ import { formatSongCount } from '../core/utils/number';
   imports: [ModalShellComponent],
 })
 export class SongPlaylistPickerComponent {
-  readonly song = input.required<SongRow>();
-  private readonly modalService = inject(ModalService);
+  readonly song = input.required<Song>();
+  private readonly modals = inject(AppModalService);
   private readonly notifications = inject(NotificationService);
 
   readonly playlistService = inject(PlaylistService);
@@ -43,10 +43,10 @@ export class SongPlaylistPickerComponent {
   }
 
   managePlaylists(): void {
-    this.modalService.open({ type: 'playlists' });
+    this.modals.open({ type: 'playlists' });
   }
 
   close(): void {
-    this.modalService.close('playlist-picker');
+    this.modals.close('playlist-picker');
   }
 }

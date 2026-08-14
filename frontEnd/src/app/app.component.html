@@ -14,14 +14,6 @@
   </main>
 </div>
 
-@if (!activeModal()) {
-  <app-clipboard-popup-outlet />
-}
-
-@if (activeModal()?.type === 'settings') {
-  <app-settings-dialog />
-} @else if (activeModal()?.type === 'playlists') {
-  <app-playlist-dialog />
-}
+<app-modal-outlet />
 
 <app-toast-outlet />

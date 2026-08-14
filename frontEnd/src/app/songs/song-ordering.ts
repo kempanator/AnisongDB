@@ -1,24 +1,24 @@
-import type { SongRow } from '../models/song';
-import { parseNonNegativeInteger } from './number';
+import { parseNonNegativeInteger } from '../shared/number';
+import type { Song } from './song';
 import { compareSongTypes } from './song-metadata';
 
 /**
  * Orders songs the same way as an ascending ANN ID table sort.
  */
-export function compareSongsByAnnId(left: SongRow, right: SongRow): number {
+export function compareSongsByAnnId(left: Song, right: Song): number {
   return left.annId - right.annId
     || compareSongTypes(left.songType, right.songType)
     || left.annSongId - right.annSongId;
 }
 
 /** Normalizes a new result set without mutating the API response array. */
-export function sortSongsByDefault(songList: SongRow[]): SongRow[] {
+export function sortSongsByDefault(songList: Song[]): Song[] {
   return [...songList].sort(compareSongsByAnnId);
 }
 
 /** Reorders API song rows to match a playlist's saved ANN Song ID order. */
-export function reorderSongsByAnnSongIds(songs: SongRow[], annSongIds: number[]): SongRow[] {
-  const songsByAnnSongId = new Map<number, SongRow>();
+export function reorderSongsByAnnSongIds(songs: Song[], annSongIds: number[]): Song[] {
+  const songsByAnnSongId = new Map<number, Song>();
   for (const song of songs) {
     const annSongId = parseNonNegativeInteger(song?.annSongId);
     if (annSongId !== null && !songsByAnnSongId.has(annSongId)) {
@@ -26,7 +26,7 @@ export function reorderSongsByAnnSongIds(songs: SongRow[], annSongIds: number[])
     }
   }
 
-  const ordered: SongRow[] = [];
+  const ordered: Song[] = [];
   const seenIds = new Set<number>();
   for (const annSongId of annSongIds) {
     if (seenIds.has(annSongId)) {

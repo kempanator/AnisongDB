@@ -1,7 +1,7 @@
 import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { NotificationService } from './notification.service';
 
-export type ClipboardPopup = {
+type ClipboardPopup = {
   left: string;
   top: string;
 };

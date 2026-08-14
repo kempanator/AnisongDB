@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { ClipboardService } from '../core/services/clipboard.service';
+import { ClipboardService } from './clipboard.service';
 
 @Component({
   selector: 'app-clipboard-popup-outlet',

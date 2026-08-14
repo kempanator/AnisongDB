@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { SongRow } from '../core/models/song';
+import { Song } from '../songs/song';
 import { SearchCommand } from './search';
 
 const SEARCH_ENDPOINTS: Record<SearchCommand['kind'], string> = {
@@ -25,9 +25,9 @@ export class SearchRequestService {
   private readonly http = inject(HttpClient);
   private readonly apiUrl = environment.apiUrl;
 
-  request(command: SearchCommand): Observable<SongRow[]> {
+  request(command: SearchCommand): Observable<Song[]> {
     const body = 'body' in command ? command.body : {};
-    return this.http.post<SongRow[]>(
+    return this.http.post<Song[]>(
       this.apiUrl + SEARCH_ENDPOINTS[command.kind],
       body,
       { headers: { 'X-Client-Id': 'AnisongDB' } },

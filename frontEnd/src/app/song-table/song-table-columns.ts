@@ -1,35 +1,68 @@
-import { compareSongsByAnnId } from '../core/utils/song-ordering';
-import { compareSongTypes, formatSongLength, getBroadcastMetadata, parseAnimeSeason } from '../core/utils/song-metadata';
-import type { AnimeTitleLanguage } from '../core/models/user-preferences';
-import { hasAnnSongId, type SongRow } from '../core/models/song';
+import { compareSongsByAnnId } from '../songs/song-ordering';
+import { compareSongTypes, formatSongLength, getBroadcastMetadata, parseAnimeSeason } from '../songs/song-metadata';
+import type { AnimeTitleLanguage } from '../settings/user-preferences';
+import { hasAnnSongId, type Song } from '../songs/song';
 
-type SortableSongValue = string | number | boolean | null;
+type SortableSongValue = string | number | boolean | null | undefined;
 
-type SongColumnReader<Value> = (
-  song: SongRow,
+export type SongColumnReader<Value> = (
+  song: Song,
   language: AnimeTitleLanguage,
 ) => Value;
 
-type SongColumnComparator = (
-  left: SongRow,
-  right: SongRow,
+export type SongColumnComparator = (
+  left: Song,
+  right: Song,
   language: AnimeTitleLanguage,
 ) => number;
 
-type SongColumnConfig<Id extends string = string> = {
-  id: Id;
+export type SongColumnCellContext = {
+  readonly song: Song;
+  readonly rowIndex: number;
+  readonly animeTitleLanguage: AnimeTitleLanguage;
+};
+
+export type SongColumnCellRenderer = (
+  container: HTMLElement,
+  context: SongColumnCellContext,
+) => void | (() => void);
+
+type SongColumnBase = {
+  id: string;
   header: string;
   visibilityLabel?: string;
   defaultVisible: boolean;
   centered?: boolean;
   nowrap?: boolean;
-  // Cell value shown in the table.
-  display?: SongColumnReader<string | number>;
-  // Clipboard text value.
-  copy?: SongColumnReader<string>;
   // Complete column comparison before the shared default tie-break chain.
   sort?: SongColumnComparator;
 };
+
+export type SongColumnDefinition = SongColumnBase & {
+  // Cell value shown in the table.
+  display?: SongColumnReader<string | number | null | undefined>;
+  // Clipboard text value.
+  copy?: SongColumnReader<string>;
+  // Userscript-owned DOM renderer. Built-in columns use Angular templates.
+  renderCell?: SongColumnCellRenderer;
+};
+
+export type CustomSongColumnDefinition = SongColumnBase & (
+  | {
+    display: SongColumnReader<string | number | null | undefined>;
+    copy?: SongColumnReader<string>;
+    renderCell?: never;
+  }
+  | {
+    renderCell: SongColumnCellRenderer;
+    display?: never;
+    copy?: never;
+  }
+);
+
+export type SongColumnPosition =
+  | { before: string; after?: never }
+  | { after: string; before?: never };
 
 const getAnimeTitle: SongColumnReader<string> = (song, language) =>
   language === 'JP' ? song.animeJPName : song.animeENName;
@@ -46,7 +79,7 @@ const compareAnimeTitle: SongColumnComparator = (left, right, language) =>
     getAnimeTitle(right, language),
   );
 
-const SONG_TABLE_COLUMN_CONFIGS = [
+export const SONG_TABLE_COLUMNS: readonly SongColumnDefinition[] = [
   {
     id: 'info',
     header: 'Info',
@@ -244,20 +277,16 @@ const SONG_TABLE_COLUMN_CONFIGS = [
     defaultVisible: true,
     centered: true,
   },
-] as const satisfies readonly SongColumnConfig[];
+];
 
-export type SongColumnId = typeof SONG_TABLE_COLUMN_CONFIGS[number]['id'];
-export type SongColumnDefinition = SongColumnConfig<SongColumnId>;
-export const SONG_TABLE_COLUMNS: readonly SongColumnDefinition[] = SONG_TABLE_COLUMN_CONFIGS;
-
-function getSeasonYearValue(song: SongRow): string {
+function getSeasonYearValue(song: Song): string {
   return parseAnimeSeason(song.animeVintage)?.label
     ?? song.animeVintage
     ?? '–';
 }
 
 export function getColumnDisplayValue(
-  song: SongRow,
+  song: Song,
   column: SongColumnDefinition,
   language: AnimeTitleLanguage,
 ): string | number {
@@ -265,7 +294,7 @@ export function getColumnDisplayValue(
 }
 
 export function getColumnCopyValue(
-  song: SongRow,
+  song: Song,
   column: SongColumnDefinition,
   language: AnimeTitleLanguage,
 ): string {
@@ -306,8 +335,8 @@ function sortBy(
 }
 
 export function compareSongsByColumn(
-  left: SongRow,
-  right: SongRow,
+  left: Song,
+  right: Song,
   column: SongColumnDefinition,
   language: AnimeTitleLanguage,
 ): number {

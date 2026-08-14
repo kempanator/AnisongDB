@@ -1,15 +1,4 @@
-import {
-  afterRenderEffect,
-  computed,
-  Directive,
-  ElementRef,
-  inject,
-  Injectable,
-  input,
-  OnDestroy,
-  signal,
-  untracked,
-} from '@angular/core';
+import { computed, Injectable, signal } from '@angular/core';
 
 export type SettingsTabCleanup = () => void;
 export type SettingsTabRender = (panel: HTMLElement) => void | SettingsTabCleanup;
@@ -31,23 +20,6 @@ export class SettingsTabRegistryService {
   private readonly registeredTabs = signal<SettingsTabDefinition[]>([]);
   readonly extensionTabs = this.registeredTabs.asReadonly();
   readonly tabs = computed(() => [...this.builtInTabs, ...this.extensionTabs()]);
-  private readonly activeTabState = signal<string>('settings');
-  readonly activeTab = this.activeTabState.asReadonly();
-  private mountedPanel: {
-    element: HTMLElement;
-    definition: SettingsTabDefinition;
-    cleanup?: SettingsTabCleanup;
-  } | null = null;
-
-  setActiveTab(id: string): void {
-    if (this.tabs().some((tab) => tab.id === id)) {
-      this.activeTabState.set(id);
-    }
-  }
-
-  resetActiveTab(): void {
-    this.activeTabState.set('settings');
-  }
 
   registerTab(definition: SettingsTabDefinition): SettingsTabCleanup {
     this.validateDefinition(definition);
@@ -59,60 +31,22 @@ export class SettingsTabRegistryService {
       throw new Error(`A settings tab with id "${definition.id}" is already registered.`);
     }
 
-    const registeredTab = { ...definition };
+    const registeredTab = Object.freeze({
+      ...definition,
+      label: definition.label.trim(),
+    });
     this.registeredTabs.update((tabs) => [...tabs, registeredTab]);
     return () => this.unregisterTab(registeredTab);
   }
 
-  mountTabPanel(id: string, panel: HTMLElement): void {
-    this.unmountCurrentPanel();
-
-    const definition = this.registeredTabs().find((tab) => tab.id === id);
-    if (!definition) return;
-
-    try {
-      const cleanup = definition.render(panel);
-      this.mountedPanel = {
-        element: panel,
-        definition,
-        cleanup: typeof cleanup === 'function' ? cleanup : undefined,
-      };
-    } catch (error) {
-      panel.replaceChildren();
-      console.error(`Could not render settings tab "${id}".`, error);
-    }
-  }
-
-  unmountTabPanel(panel: HTMLElement): void {
-    if (this.mountedPanel?.element !== panel) return;
-    this.unmountCurrentPanel();
-  }
-
-  private unmountCurrentPanel(): void {
-    const mountedPanel = this.mountedPanel;
-    if (!mountedPanel) return;
-
-    try {
-      mountedPanel.cleanup?.();
-    } catch (error) {
-      console.error(`Could not clean up settings tab "${mountedPanel.definition.id}".`, error);
-    }
-    mountedPanel.element.replaceChildren();
-    this.mountedPanel = null;
+  getExtensionTab(id: string): SettingsTabDefinition | undefined {
+    return this.registeredTabs().find((tab) => tab.id === id);
   }
 
   private unregisterTab(definition: SettingsTabDefinition): void {
     if (!this.registeredTabs().includes(definition)) return;
 
     this.registeredTabs.update((tabs) => tabs.filter((tab) => tab !== definition));
-
-    if (this.mountedPanel?.definition === definition) {
-      this.unmountCurrentPanel();
-    }
-
-    if (this.activeTab() === definition.id) {
-      this.activeTabState.set('settings');
-    }
   }
 
   private validateDefinition(definition: SettingsTabDefinition): void {
@@ -128,28 +62,5 @@ export class SettingsTabRegistryService {
     if (typeof definition.render !== 'function') {
       throw new TypeError('Settings tab render must be a function.');
     }
-  }
-}
-
-@Directive({
-  selector: '[settingsTabPanel]',
-})
-export class SettingsTabPanelDirective implements OnDestroy {
-  readonly settingsTabPanel = input.required<string>();
-
-  private readonly elementRef = inject(ElementRef<HTMLElement>);
-  private readonly tabRegistry = inject(SettingsTabRegistryService);
-
-  constructor() {
-    afterRenderEffect(() => {
-      const tabId = this.settingsTabPanel();
-      untracked(() => {
-        this.tabRegistry.mountTabPanel(tabId, this.elementRef.nativeElement);
-      });
-    });
-  }
-
-  ngOnDestroy(): void {
-    this.tabRegistry.unmountTabPanel(this.elementRef.nativeElement);
   }
 }

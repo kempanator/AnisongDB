@@ -1,20 +1,19 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import {
-  ANIME_TITLE_LANGUAGE_OPTIONS,
-  DIST_SERVER_OPTIONS,
-  RADIO_MODE_OPTIONS,
-  THEME_OPTIONS,
-} from '../core/models/user-preferences';
-import { AppStorageService } from '../core/services/app-storage.service';
-import { ModalService } from '../core/services/modal.service';
-import { NotificationService } from '../core/services/notification.service';
-import { UserPreferencesService } from '../core/services/user-preferences.service';
+import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
+import { ANIME_TITLE_LANGUAGE_OPTIONS, DIST_SERVER_OPTIONS, RADIO_MODE_OPTIONS, THEME_OPTIONS } from './user-preferences';
+import { AppStorageService, type StoredAppData } from '../core/app-storage.service';
+import { AppModalService } from '../modals/app-modal.service';
+import { downloadJsonFile, readJsonFile } from '../shared/json-file';
+import { NotificationService } from '../shared/notification.service';
+import { UserPreferencesService } from './user-preferences.service';
 import { ModalShellComponent } from '../shared/modal-shell.component';
-import { AppDataBackupService } from './app-data-backup.service';
-import {
-  SettingsTabPanelDirective,
-  SettingsTabRegistryService,
-} from './settings-tab-registry.service';
+import { SettingsTabPanelDirective } from './settings-tab-panel.directive';
+import { SettingsTabRegistryService } from './settings-tab-registry.service';
+
+interface AppDataBackup {
+  format: 'anisongdb-app-data';
+  exportedAt: string;
+  data: StoredAppData;
+}
 
 @Component({
   selector: 'app-settings-dialog',
@@ -24,12 +23,11 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SettingsDialogComponent {
-  readonly modals = inject(ModalService);
+  readonly modals = inject(AppModalService);
   readonly settingsTabRegistry = inject(SettingsTabRegistryService);
-  readonly activeTab = this.settingsTabRegistry.activeTab;
+  readonly activeTab = signal<string>('settings');
   readonly userPreferencesService = inject(UserPreferencesService);
   private readonly storage = inject(AppStorageService);
-  private readonly backup = inject(AppDataBackupService);
   private readonly notifications = inject(NotificationService);
 
   readonly preferences = this.userPreferencesService.preferences;
@@ -39,11 +37,17 @@ export class SettingsDialogComponent {
   readonly radioModes = RADIO_MODE_OPTIONS;
 
   constructor() {
-    this.settingsTabRegistry.resetActiveTab();
+    effect(() => {
+      if (!this.settingsTabRegistry.tabs().some((tab) => tab.id === this.activeTab())) {
+        this.activeTab.set('settings');
+      }
+    });
   }
 
   setTab(tab: string): void {
-    this.settingsTabRegistry.setActiveTab(tab);
+    if (this.settingsTabRegistry.tabs().some((candidate) => candidate.id === tab)) {
+      this.activeTab.set(tab);
+    }
   }
 
   onTabKeydown(event: KeyboardEvent): void {
@@ -61,7 +65,16 @@ export class SettingsDialogComponent {
   }
 
   exportAppData(): void {
-    this.backup.exportAll();
+    const backup: AppDataBackup = {
+      format: 'anisongdb-app-data',
+      exportedAt: new Date().toISOString(),
+      data: this.storage.readAll(),
+    };
+    downloadJsonFile(
+      `anisongdb-data-${backup.exportedAt.slice(0, 10)}.json`,
+      backup,
+      2,
+    );
     this.notifications.show('App data exported');
   }
 
@@ -84,7 +97,7 @@ export class SettingsDialogComponent {
 
   private async importAppData(file: File): Promise<void> {
     try {
-      const values = await this.backup.readFile(file);
+      const values = parseAppDataBackup(await readJsonFile(file));
       if (!values) {
         this.notifications.show('That is not a valid app data backup');
         return;
@@ -99,4 +112,18 @@ export class SettingsDialogComponent {
       this.notifications.show('Could not read that app data file');
     }
   }
+}
+
+function parseAppDataBackup(value: unknown): StoredAppData | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+
+  const candidate = value as Partial<AppDataBackup>;
+  if (
+    candidate.format !== 'anisongdb-app-data'
+    || !candidate.data
+    || typeof candidate.data !== 'object'
+    || Array.isArray(candidate.data)
+  ) return null;
+
+  return candidate.data;
 }
