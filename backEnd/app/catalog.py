@@ -14,7 +14,7 @@ import sql_calls
 import utils
 from db_types import *
 from schemas import AnnIdLinkedAnimeEntry
-from song_filters import SongFilters
+from song_filters import SongFilters, normalize_anime_type, normalize_song_category
 
 # Limit distinct artist IDs returned by name resolution. Broad partial searches
 # can otherwise expand into thousands of artists and candidate songs.
@@ -210,7 +210,7 @@ def load_catalog() -> Catalog:
 
     song_type_counts: Counter[int] = Counter()
     broadcast_counts: Counter[str] = Counter()
-    category_counts: Counter[str] = Counter()
+    performance_counts: Counter[str] = Counter()
     anime_type_counts: Counter[str] = Counter()
     seasons: set[str] = set()
     anime_ids: set[int] = set()
@@ -279,9 +279,8 @@ def load_catalog() -> Catalog:
             broadcast_counts["Rebroadcast"] += 1
         if song[COL_IS_DUB] == 0 and song[COL_IS_REBROADCAST] == 0:
             broadcast_counts["Normal"] += 1
-        if song[COL_SONG_CATEGORY] is not None:
-            category_counts[song[COL_SONG_CATEGORY]] += 1
-        anime_type_counts[song[COL_ANIME_TYPE] or "No Type"] += 1
+        performance_counts[normalize_song_category(song[COL_SONG_CATEGORY])] += 1
+        anime_type_counts[normalize_anime_type(song[COL_ANIME_TYPE])] += 1
         if song[COL_ANIME_VINTAGE] is not None:
             seasons.add(song[COL_ANIME_VINTAGE])
         hq_count += song[COL_HQ] is not None
@@ -305,7 +304,7 @@ def load_catalog() -> Catalog:
             "Insert": song_type_counts[3],
         },
         "songs_by_broadcast": dict(broadcast_counts),
-        "songs_by_category": dict(category_counts),
+        "songs_by_performance": dict(performance_counts),
         "songs_by_anime_type": dict(anime_type_counts),
     }
     linked_ids_adapter = TypeAdapter(dict[int, AnnIdLinkedAnimeEntry])

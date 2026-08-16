@@ -1,134 +1,39 @@
-import { Component, ViewChild, AfterViewInit, OnDestroy, OnInit, ElementRef } from '@angular/core';
-import { MediaPlayer, LocalMediaStorage } from 'vidstack';
-import { Subscription } from 'rxjs';
-import { SearchRequestService } from './core/services/search-request.service';
-import { DistServerService } from './core/services/dist-server.service';
-import { ThemeService } from './core/services/theme.service';
-
-class CustomLocalMediaStorage extends LocalMediaStorage {
-  // Override to prevent automatic timestamp retrieval
-  async getTime(): Promise<number | null> {
-    return null; // Return null to opt-out of retrieving the current time
-  }
-
-  // Override to prevent automatic timestamp saving
-  async setTime(_time: number, _ended: boolean): Promise<void> {
-    // Do nothing
-  }
-}
+import { ChangeDetectionStrategy, Component, DOCUMENT, effect, inject } from '@angular/core';
+import { AppHeaderComponent } from './app-header.component';
+import { AudioPlayerComponent } from './audio/audio-player.component';
+import { UserPreferencesService } from './settings/user-preferences.service';
+import { AppModalOutletComponent } from './modals/app-modal-outlet.component';
+import { SearchBarComponent } from './search/search-bar.component';
+import { SongSearchController } from './search/song-search-controller.service';
+import { ToastOutletComponent } from './shared/toast-outlet.component';
+import { SongTableComponent } from './song-table/song-table.component';
 
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
-  styleUrls: ['./app.component.scss'],
-  standalone: false,
+  styleUrls: ['./app.component.css'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [
+    AppHeaderComponent,
+    AppModalOutletComponent,
+    AudioPlayerComponent,
+    SearchBarComponent,
+    SongTableComponent,
+    ToastOutletComponent,
+  ],
 })
-export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
-  @ViewChild('audioPlayerRef', { static: false }) audioPlayerRef!: ElementRef;
-  audioPlayer: MediaPlayer = this.audioPlayerRef?.nativeElement;
-  customLocalMediaStorage = new CustomLocalMediaStorage();
+export class AppComponent {
+  private readonly document = inject(DOCUMENT);
+  private readonly preferences = inject(UserPreferencesService);
+  private readonly searches = inject(SongSearchController);
 
-  constructor(
-    private searchRequestService: SearchRequestService,
-    private distServerService: DistServerService,
-    private themeService: ThemeService,
-  ) {}
+  constructor() {
+    // Load 50 random songs on startup
+    this.searches.startInitialSearch();
 
-  title = 'anisongDB';
-  songList: any;
-  currentlyPlayingArtist: any = '';
-  currentlyPlayingSongName: any = '';
-  animeTitleLang: string = 'JP';
-
-  // Keys for storing player preferences in localStorage
-  private readonly langKey = 'animeTitleLang';
-  private songListSubscription: Subscription | null = null;
-
-  ngOnInit() {
-    this.initializeTableSettings();
-    this.songListSubscription = this.searchRequestService.songList$.subscribe(
-      (data) => {
-        this.songList = data;
-      },
-    );
-  }
-
-  ngOnDestroy() {
-    this.songListSubscription?.unsubscribe();
-  }
-
-  private initializeTableSettings() {
-    const savedLang = localStorage.getItem(this.langKey);
-    this.animeTitleLang = savedLang ? savedLang : 'JP';
-  }
-
-  toggleAnimeLang() {
-    this.animeTitleLang = this.animeTitleLang === 'JP' ? 'EN' : 'JP';
-    localStorage.setItem(this.langKey, this.animeTitleLang);
-  }
-
-  ngAfterViewInit() {
-    // Ensure player is defined before calling methods
-    if (this.audioPlayerRef) {
-      this.audioPlayer = this.audioPlayerRef.nativeElement;
-      (this.audioPlayer as any).crossOrigin = true;
-      (this.audioPlayer as any).keyTarget = 'document';
-      this.audioPlayer.startLoading();
-    } else {
-      console.error('Player is not defined in ngAfterViewInit');
-    }
-  }
-
-  private waitForCanPlay(player: MediaPlayer): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const handleCanPlay = () => {
-        resolve();
-        player.removeEventListener('can-play', handleCanPlay);
-      };
-
-      const handleError = (event: Event) => {
-        reject(event);
-        player.removeEventListener('can-play', handleCanPlay);
-      };
-
-      player.addEventListener('can-play', handleCanPlay);
-      player.addEventListener('error', handleError);
-    });
-  }
-
-  async playMP3(song: any) {
-    const { audioPlayer } = this;
-
-    try {
-      await this.setUrl(audioPlayer, song);
-
-      // Wait for the player to be ready
-      await this.waitForCanPlay(audioPlayer);
-
-      // Start playing the media
-      await audioPlayer?.play();
-    } catch (error) {
-      console.error('Error playing song:', error);
-    }
-  }
-
-  private setUrl(player: MediaPlayer, song: any): Promise<void> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        // Construct the full URL for the MP3 file
-
-        const songUrl = this.distServerService.getDistUrl(song.audio);
-
-        // This set variables so that the song name and artist can be displayed on the player <div>
-        this.currentlyPlayingArtist = song.songArtist;
-        this.currentlyPlayingSongName = song.songName;
-
-        // Set the source URL for the media player
-        (player as any).src = songUrl; // Set the src attribute
-        player.title = song.songName + ' by ' + song.songArtist;
-
-        resolve();
-      }, 0);
+    effect(() => {
+      this.document.documentElement.dataset['theme'] =
+        this.preferences.preferences().theme;
     });
   }
 }

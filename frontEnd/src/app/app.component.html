@@ -1,48 +1,19 @@
-<!-- Toolbar -->
-<div class="toolbar" role="banner">
-  <a id="header-logo-link" class="toolbar-logo-link" href="https://anisongdb.com">
-    <img class="toolbar-logo" alt="Artist Anisong Database Logo" src="/assets/img/sardineLogo.png" />
-    <span class="toolbar-title">Anisong Database</span>
-  </a>
-  <div class="spacer"></div>
+<div class="app-shell">
+  <app-header />
 
-  <p class="toolbar-anime-name-label">Anime Name</p>
-  <label id="anime-name-lang-toggle-label" class="toggleSwitch nolabel toolbar-lang-toggle" title="Anime title displaying">
-    <input id="anime-name-lang-toggle" (click)="toggleAnimeLang()" type="checkbox" [checked]="animeTitleLang === 'JP'" />
-    <a></a>
-    <span>
-      <span class="left-span">EN</span>
-      <span class="right-span">JP</span>
-    </span>
-  </label>
-  <a id="header-github-link" class="toolbar-github-logo" aria-label="See project on Github" target="_blank" rel="noopener"
-    href="https://github.com/xSardine/AMQ-Artists-DB" title="Github">
-    <i class="fa fa-github"></i><span class="toolbar-github-text"> Github</span>
-  </a>
+  <app-audio-player />
+
+  <main class="content">
+    <app-search-bar />
+    <app-song-table />
+    <p class="amq-disclaimer">
+      Built on the <a href="https://animemusicquiz.com/" target="_blank" rel="noopener">AMQ</a>
+      database. This is a personal project, not affiliated. Support AMQ on
+      <a href="https://www.patreon.com/NextWorldGames" target="_blank" rel="noopener">Patreon</a>.
+    </p>
+  </main>
 </div>
 
-<div id="audio-player" title="{{currentlyPlayingSongName}} by {{currentlyPlayingArtist}}">
+<app-modal-outlet />
 
-  <media-player #audioPlayerRef [storage]="customLocalMediaStorage">
-      <media-provider></media-provider>
-      <media-audio-layout></media-audio-layout>
-  </media-player>
-
-</div>
-
-<div class="content" role="main">
-  <app-search-bar [currentSongList]="songList">
-  </app-search-bar>
-  <app-song-table (mp3PlayerClicked)="playMP3($event)" [songTable]="songList"
-    [animeTitleLang]="animeTitleLang">
-  </app-song-table>
-  <p class="amq-disclaimer">
-    Built on the
-    <a href="https://animemusicquiz.com/" target="_blank" rel="noopener">AMQ</a>
-    database. This is a personal project, not affiliated. Support AMQ on
-    <a href="https://www.patreon.com/NextWorldGames" target="_blank" rel="noopener">Patreon</a>.
-  </p>
-</div>
-
-
-<router-outlet></router-outlet>
+<app-toast-outlet />
