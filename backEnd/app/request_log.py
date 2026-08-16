@@ -2,6 +2,9 @@
 In-memory request log (JSON). Viewer URL segment from backEnd/.env (REQUEST_LOG_URL_SEGMENT).
 """
 
+import hashlib
+import hmac
+import secrets
 import threading
 from pathlib import Path
 from collections import deque
@@ -39,6 +42,27 @@ def get_request_log_path() -> str:
     return segment or _DEFAULT_URL_SEGMENT
 
 
+def _read_env_bool(key: str, default: bool) -> bool:
+    """Parse a bool-like env value from backEnd/.env."""
+    value = _read_env_value(key)
+    if value is None:
+        return default
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    return default
+
+
+_ANONYMIZE_IP = _read_env_bool("REQUEST_LOG_ANONYMIZE_IP", default=True)
+_IP_HASH_SALT = (_read_env_value("REQUEST_LOG_IP_HASH_SALT") or "").strip()
+if _ANONYMIZE_IP and not _IP_HASH_SALT:
+    # Random fallback prevents plain-IP storage without forcing users to set a salt.
+    # Set REQUEST_LOG_IP_HASH_SALT in backEnd/.env for stable aliases across restarts.
+    _IP_HASH_SALT = secrets.token_hex(16)
+
+
 def _serialize_body(body: Any) -> Any:
     """Serialize request body for JSON logging (Pydantic models omit null fields)."""
     if isinstance(body, BaseModel):
@@ -64,6 +88,21 @@ def _client_ip(request: Any):
     return None
 
 
+def _ip_alias(ip: str | None) -> str | None:
+    """Return a deterministic, non-reversible alias for an IP address."""
+    if not ip:
+        return None
+    if not _ANONYMIZE_IP:
+        return ip
+
+    digest = hmac.new(
+        _IP_HASH_SALT.encode("utf-8"),
+        ip.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    return f"anon-{digest[:12]}"
+
+
 def _client_id(request: Any) -> str | None:
     """Caller label from X-Client-Id (e.g. AnisongDB)."""
     if request is None:
@@ -73,7 +112,7 @@ def _client_id(request: Any) -> str | None:
 
 def _request_context(request: Any) -> dict[str, Any]:
     """Build per-event metadata from the Starlette request (IP, optional X-Client-Id)."""
-    context: dict[str, Any] = {"ip": _client_ip(request)}
+    context: dict[str, Any] = {"ip": _ip_alias(_client_ip(request))}
     client_identifier = _client_id(request)
     if client_identifier is not None:
         context["client"] = client_identifier
@@ -176,7 +215,9 @@ def record_request(
         )
 
     if http_status >= 400 and raise_http_exception:
-        raise HTTPException(status_code=http_status, detail=detail or reason or "Request failed")
+        raise HTTPException(
+            status_code=http_status, detail=detail or reason or "Request failed"
+        )
 
 
 def get_feed_payload(since: str | None = None, limit: int = 100):

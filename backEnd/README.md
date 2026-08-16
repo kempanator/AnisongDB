@@ -18,18 +18,21 @@ Requires **Python 3.10+** ([downloads](https://www.python.org/downloads/)).
 ### Setup
 
 Open a terminal from the repo root
+
 ```bash
 cd backEnd
 python -m venv venv
 ```
 
 Activate the virtual environment:
+
 ```bash
 source venv/bin/activate   # Linux / macOS
 venv\Scripts\activate      # Windows
 ```
 
 Install dependencies:
+
 ```bash
 pip install -r requirements.txt
 ```
@@ -58,8 +61,15 @@ Interactive docs: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) or [h
 
 The API serves an in-memory request log viewer from `backEnd/app/log-viewer.html`. Copy `backEnd/.env.example` to `backEnd/.env` and set `REQUEST_LOG_URL_SEGMENT` to the URL path segment you want. Defaults to `log` if `.env` is missing or the segment is blank. Restart the server after changing `.env`.
 
+IP addresses are anonymized by default (`REQUEST_LOG_ANONYMIZE_IP=true`): the log stores a deterministic alias like `anon-abc123...` so repeated requests from the same IP are still linkable without exposing the real address. Set `REQUEST_LOG_IP_HASH_SALT` in `backEnd/.env` if you want aliases to remain stable across restarts.
+
 - Viewer: `http://127.0.0.1:8000/log` (or your custom segment)
 - JSON feed: `http://127.0.0.1:8000/log/feed`
+
+If your reverse proxy only forwards `/api/*` to FastAPI, the same endpoints are also available under `/api`:
+
+- Viewer: `http://127.0.0.1:8000/api/log`
+- JSON feed: `http://127.0.0.1:8000/api/log/feed`
 
 ## Production
 

@@ -101,10 +101,10 @@ app.add_middleware(
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],     # Accept requests from any domain
+    allow_origins=["*"],  # Accept requests from any domain
     allow_credentials=True,  # Support cookies/credentials
-    allow_methods=["*"],     # Permit all HTTP methods
-    allow_headers=["*"],     # Allow any HTTP headers
+    allow_methods=["*"],  # Permit all HTTP methods
+    allow_headers=["*"],  # Allow any HTTP headers
 )
 
 
@@ -137,7 +137,9 @@ def resolve_song_filters(query) -> SongFilters:
     return SongFilters(
         song_types=frozenset(SONG_TYPE_IDS[value] for value in filters.song_types),
         broadcasts=frozenset(BROADCAST_NAMES[value] for value in filters.broadcasts),
-        song_categories=frozenset(CATEGORY_NAMES[value] for value in filters.song_categories),
+        song_categories=frozenset(
+            CATEGORY_NAMES[value] for value in filters.song_categories
+        ),
         anime_types=frozenset(ANIME_TYPE_NAMES[value] for value in filters.anime_types),
         season_start=filters.season.start if filters.season else None,
         season_end=filters.season.end if filters.season else None,
@@ -196,7 +198,11 @@ def get_n_random_songs(
 @app.post(
     "/api/search_request",
     response_model=list[SongEntry],
-    responses={503: {"description": "Song name/artist/composer text search is disabled during ranked time"}},
+    responses={
+        503: {
+            "description": "Song name/artist/composer text search is disabled during ranked time"
+        }
+    },
 )
 def search_request(
     query: SearchRequest,
@@ -465,7 +471,9 @@ def season_request(
         season, year = season_parts
         season = season.capitalize()
         if season not in possible_seasons:
-            error_detail = "Invalid season. Please use 'Winter', 'Spring', 'Summer', or 'Fall'."
+            error_detail = (
+                "Invalid season. Please use 'Winter', 'Spring', 'Summer', or 'Fall'."
+            )
         elif not year.isdigit() or len(year) != 4:
             error_detail = "Invalid year. Please use a 4-digit year."
         else:
@@ -595,10 +603,12 @@ log_viewer = Path(__file__).resolve().parent / "log-viewer.html"
 
 if log_path and log_viewer.is_file():
 
+    @app.get(f"/api/{log_path}", include_in_schema=False)
     @app.get(f"/{log_path}", include_in_schema=False)
     async def request_log_viewer_page():
         return FileResponse(log_viewer, media_type="text/html")
 
+    @app.get(f"/api/{log_path}/feed", include_in_schema=False)
     @app.get(f"/{log_path}/feed", include_in_schema=False)
     async def request_log_feed(since: str | None = None, limit: int = 100):
         return request_log.get_feed_payload(since, limit)

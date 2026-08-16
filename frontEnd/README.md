@@ -15,6 +15,8 @@ npm start
 
 Open `http://localhost:4200/`. The app reloads when you change source files.
 
+The dev server proxies `http://localhost:4200/log` (and `/log/feed`) to the backend at `http://127.0.0.1:8000`, so you can open the request log viewer from the same host/port while developing.
+
 ## API backend
 
 You need a running API for the front end to display search results:
