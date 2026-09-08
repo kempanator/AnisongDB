@@ -34,6 +34,10 @@ export class SongInfoModalComponent {
   readonly rowIndex = computed(() => this.workspace.songs()?.indexOf(this.song()) ?? -1);
   readonly totalRows = computed(() => this.workspace.songs()?.length ?? 0);
   readonly showAmqSongId = computed(() => this.preferences.preferences().showAmqSongId);
+  readonly songAndArtist = computed(() => {
+    const song = this.song();
+    return `"${song.songName}" by ${song.songArtist || 'Unknown Artist'}`;
+  });
   readonly creditSearchTitle = creditSearchTitle;
 
   readonly creditSections = computed(() => buildCreditSections(this.song()));

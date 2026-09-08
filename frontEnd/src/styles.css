@@ -15,8 +15,7 @@
   --surface-2: #333333;
   --surface-3: #222222;
 
-  --song-info-panel: #4b4b4b;
-  --song-info-grid: #3d3d3d;
+  --song-info-panel: #444444;
 
   --text: #ffffff;
   --text-muted: rgba(255, 255, 255, 0.7);
@@ -58,7 +57,6 @@
   --surface-3: #1b2025;
 
   --song-info-panel: #20252a;
-  --song-info-grid: #1b2025;
 
   --text: #e8eaed;
   --text-muted: rgba(232, 234, 237, 0.7);
@@ -93,7 +91,6 @@
   --surface-3: #e5e7eb;
 
   --song-info-panel: #f3f4f6;
-  --song-info-grid: #e5e7eb;
 
   --text: #0f172a;
   --text-muted: rgba(15, 23, 42, 0.62);

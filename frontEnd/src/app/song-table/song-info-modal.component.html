@@ -2,22 +2,33 @@
   <app-modal-shell titleId="song-modal-song-name" dialogId="song-info-modal" closeButtonId="song-modal-close"
     closeLabel="Close song info" size="wide" (closed)="close()">
     <div modal-title class="song-modal-title-group">
-      <h2
-        id="song-modal-song-name"
-        class="app-copyable song-modal-title"
-        title="Copy to clipboard"
-        (click)="onCopy($event, currentSong.songName)"
+      <button
+        type="button"
+        class="app-icon-button song-modal-title-copy"
+        title="Copy song and artist"
+        aria-label="Copy song and artist"
+        (click)="onCopy($event, songAndArtist())"
       >
-        {{ currentSong.songName }}
-      </h2>
-      <p
-        id="song-modal-artist"
-        class="app-copyable song-modal-artist"
-        title="Copy to clipboard"
-        (click)="onCopy($event, currentSong.songArtist)"
-      >
-        by {{ currentSong.songArtist || 'Unknown Artist' }}
-      </p>
+        <i class="fa fa-clone" aria-hidden="true"></i>
+      </button>
+      <div class="song-modal-title-text">
+        <h2
+          id="song-modal-song-name"
+          class="app-copyable song-modal-title"
+          title="Copy to clipboard"
+          (click)="onCopy($event, currentSong.songName)"
+        >
+          {{ currentSong.songName }}
+        </h2>
+        <p
+          id="song-modal-artist"
+          class="app-copyable song-modal-artist"
+          title="Copy to clipboard"
+          (click)="onCopy($event, currentSong.songArtist)"
+        >
+          by {{ currentSong.songArtist || 'Unknown Artist' }}
+        </p>
+      </div>
     </div>
     <span modal-header-actions id="song-modal-row-number" class="song-modal-row-number">
       {{ rowIndex() + 1 }} / {{ totalRows() }}
@@ -25,8 +36,8 @@
 
       <div #modalContent class="song-modal-body">
         <div class="song-modal-overview">
-          <section class="song-modal-panel">
-            <div class="song-modal-panel-header">
+          <section class="song-modal-section">
+            <div class="song-modal-section-header">
               <h3>Anime</h3>
               <div class="song-modal-site-links">
                 @for (site of animeListSites; track site.alt) {
@@ -43,7 +54,8 @@
                 }
               </div>
             </div>
-            <dl class="song-modal-facts">
+            <div class="song-modal-panel">
+              <dl class="song-modal-facts">
               <div>
                 <dt>English</dt>
                 <dd
@@ -143,14 +155,16 @@
                   </dd>
                 </div>
               }
-            </dl>
+              </dl>
+            </div>
           </section>
 
-          <section class="song-modal-panel">
-            <div class="song-modal-panel-header">
+          <section class="song-modal-section">
+            <div class="song-modal-section-header">
               <h3>Song</h3>
             </div>
-            <dl class="song-modal-facts">
+            <div class="song-modal-panel">
+              <dl class="song-modal-facts">
               <div>
                 <dt>Type</dt>
                 <dd
@@ -243,18 +257,19 @@
                   {{ formattedLength() || '–' }}
                 </dd>
               </div>
-            </dl>
+              </dl>
+            </div>
           </section>
         </div>
 
         @if (currentSong.HQ || currentSong.MQ || currentSong.audio) {
-          <section class="song-modal-panel">
+          <section class="song-modal-section">
             <h3>Links</h3>
             <div class="song-modal-links-list">
               @for (link of songDistLinks; track link.field) {
                 @if (currentSong[link.field]; as fileName) {
                   @let url = preferences.getDistUrl(fileName);
-                  <div class="song-modal-link">
+                  <div class="song-modal-panel song-modal-link">
                     <span class="song-modal-link-kind">{{ link.infoLabel }}</span>
                     <a
                       class="song-modal-link-file"
@@ -282,12 +297,12 @@
         }
 
         @if (creditSections().length > 0) {
-          <section class="song-modal-panel">
-            @for (section of creditSections(); track section.title) {
+          @for (section of creditSections(); track section.title) {
+            <section class="song-modal-section">
               <h3>{{ section.title }}</h3>
               <div class="song-modal-credit-grid" [style.--song-modal-grid-columns]="gridColumns(section.people.length)">
                 @for (person of section.people; track $index) {
-                  <div class="song-modal-credit-grid-item">
+                  <div class="song-modal-panel">
                     <p class="song-modal-credit-primary">
                       @if (!rankedActive()) {
                         <button
@@ -384,8 +399,8 @@
                   </div>
                 }
               </div>
-            }
-          </section>
+            </section>
+          }
         }
       </div>
   </app-modal-shell>
