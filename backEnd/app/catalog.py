@@ -14,7 +14,7 @@ import sql_calls
 import utils
 from db_types import *
 from schemas import AnnIdLinkedAnimeEntry
-from song_filters import SongFilters, normalize_anime_type, normalize_song_category
+from song_filters import SongFilters, normalize_anime_type, normalize_song_category, _season_index
 
 # Limit distinct artist IDs returned by name resolution. Broad partial searches
 # can otherwise expand into thousands of artists and candidate songs.
@@ -35,12 +35,16 @@ class Catalog:
     songs_by_mal_id: SongRowsByExternalId
     songs_by_ann_song_id: SongRowsByExternalId
     songs_by_amq_song_id: SongRowsByExternalId
+    genres_by_ann_id: AnimeLabelsByAnnId
+    tags_by_ann_id: AnimeLabelsByAnnId
+    genre_by_lower: LabelCanonicalMap
+    tag_by_lower: LabelCanonicalMap
     artist_autocomplete_values: tuple[str, ...]
     song_name_autocomplete_values: tuple[str, ...]
     annid_linked_ids_json: bytes
     annid_linked_ids_gzip: bytes
     annid_linked_ids_etag: str
-    database_totals: DatabaseTotalsPayload
+    database_stats: DatabaseStatsPayload
 
     def resolve_artist_ids(
         self, regex: Pattern[str], match_case: bool = False
@@ -190,10 +194,21 @@ def _freeze_reverse_map(rows: defaultdict[int, list[int]]) -> SongIdReverseMap:
     return {person_id: tuple(song_ids) for person_id, song_ids in rows.items()}
 
 
+def _season_sort_key(value: str) -> tuple[bool, int, str]:
+    """Sort anime seasons chronologically; unknown labels last."""
+    index = _season_index(value)
+    if index is None:
+        return (True, 0, value)
+    return (False, index, value)
+
+
 def load_catalog() -> Catalog:
     """Load database source rows once and build the read catalog indexes."""
     song_rows = sql_calls.load_song_rows()
     artists_by_id = sql_calls.load_artist_database()
+    genres_by_ann_id, tags_by_ann_id, genre_by_lower, tag_by_lower = (
+        sql_calls.load_anime_label_maps()
+    )
 
     songs_by_id: dict[int, SongFullRow] = {}
     anime_by_id: AnimeDatabase = {}
@@ -212,9 +227,20 @@ def load_catalog() -> Catalog:
     broadcast_counts: Counter[str] = Counter()
     performance_counts: Counter[str] = Counter()
     anime_type_counts: Counter[str] = Counter()
+    season_song_counts: Counter[str] = Counter()
+    genre_song_counts: Counter[str] = Counter()
+    tag_song_counts: Counter[str] = Counter()
+    length_counts: Counter[int] = Counter()
+    difficulty_counts = [0] * 101
     seasons: set[str] = set()
     anime_ids: set[int] = set()
     hq_count = mq_count = audio_count = 0
+    songs_without_difficulty = 0
+    songs_without_length = 0
+    songs_without_season = 0
+    songs_without_genre = 0
+    songs_without_tag = 0
+    songs_without_links = 0
 
     for song in song_rows:
         song_id = song[COL_SONG_ID]
@@ -281,18 +307,88 @@ def load_catalog() -> Catalog:
             broadcast_counts["Normal"] += 1
         performance_counts[normalize_song_category(song[COL_SONG_CATEGORY])] += 1
         anime_type_counts[normalize_anime_type(song[COL_ANIME_TYPE])] += 1
-        if song[COL_ANIME_VINTAGE] is not None:
-            seasons.add(song[COL_ANIME_VINTAGE])
-        hq_count += song[COL_HQ] is not None
-        mq_count += song[COL_MQ] is not None
-        audio_count += song[COL_AUDIO] is not None
+
+        difficulty = song[COL_SONG_DIFFICULTY]
+        if difficulty is None:
+            songs_without_difficulty += 1
+        else:
+            bucket = int(difficulty)
+            if bucket < 0:
+                bucket = 0
+            elif bucket > 100:
+                bucket = 100
+            difficulty_counts[bucket] += 1
+
+        length = song[COL_SONG_LENGTH]
+        if length is None:
+            songs_without_length += 1
+        else:
+            length_counts[int(length)] += 1
+
+        vintage = song[COL_ANIME_VINTAGE]
+        if vintage:
+            seasons.add(vintage)
+            season_song_counts[vintage] += 1
+        else:
+            songs_without_season += 1
+
+        genres = genres_by_ann_id.get(ann_id)
+        if genres:
+            for genre in genres:
+                genre_song_counts[genre_by_lower[genre.lower()]] += 1
+        else:
+            songs_without_genre += 1
+
+        tags = tags_by_ann_id.get(ann_id)
+        if tags:
+            for tag in tags:
+                tag_song_counts[tag_by_lower[tag.lower()]] += 1
+        else:
+            songs_without_tag += 1
+
+        has_hq = song[COL_HQ] is not None
+        has_mq = song[COL_MQ] is not None
+        has_audio = song[COL_AUDIO] is not None
+        hq_count += has_hq
+        mq_count += has_mq
+        audio_count += has_audio
+        if not (has_hq or has_mq or has_audio):
+            songs_without_links += 1
+
+    max_length_seconds = max(length_counts) if length_counts else 0
+    songs_by_length = [
+        length_counts.get(seconds, 0) for seconds in range(max_length_seconds + 1)
+    ]
+    songs_per_anime_counts = Counter(
+        len(rows) for rows in songs_by_ann.values()
+    )
+    songs_per_anime = {
+        str(song_count): anime_count
+        for song_count, anime_count in sorted(songs_per_anime_counts.items())
+    }
+    songs_by_season = {
+        season: season_song_counts[season]
+        for season in sorted(season_song_counts, key=_season_sort_key)
+    }
+    songs_by_genre = {
+        genre: count
+        for genre, count in sorted(
+            genre_song_counts.items(), key=lambda item: (-item[1], item[0].lower())
+        )
+    }
+    songs_by_tag = {
+        tag: count
+        for tag, count in sorted(
+            tag_song_counts.items(), key=lambda item: (-item[1], item[0].lower())
+        )
+    }
 
     artist_name_rows = tuple(
         (int(artist_id), name)
         for artist_id, artist in artists_by_id.items()
         for name in artist["names"]
     )
-    database_totals: DatabaseTotalsPayload = {
+    database_stats: DatabaseStatsPayload = {
         "total_songs": len(song_rows),
         "total_anime": len(anime_ids),
         "total_artists": len(artists_by_id),
@@ -306,6 +402,23 @@ def load_catalog() -> Catalog:
         "songs_by_broadcast": dict(broadcast_counts),
         "songs_by_performance": dict(performance_counts),
         "songs_by_anime_type": dict(anime_type_counts),
+        "songs_by_difficulty": difficulty_counts,
+        "songs_by_length": songs_by_length,
+        "songs_by_season": songs_by_season,
+        "songs_by_genre": songs_by_genre,
+        "songs_by_tag": songs_by_tag,
+        "songs_per_anime": songs_per_anime,
+        "missing_data": {
+            "songs_without_difficulty": songs_without_difficulty,
+            "songs_without_length": songs_without_length,
+            "songs_without_season": songs_without_season,
+            "songs_without_genre": songs_without_genre,
+            "songs_without_tag": songs_without_tag,
+            "songs_without_links": songs_without_links,
+            "anime_without_genre": sum(1 for ann_id in anime_ids if ann_id not in genres_by_ann_id),
+            "anime_without_tag": sum(1 for ann_id in anime_ids if ann_id not in tags_by_ann_id),
+            "anime_without_season": sum(1 for anime in anime_by_id.values() if not anime["animeVintage"]),
+        },
     }
     linked_ids_adapter = TypeAdapter(dict[int, AnnIdLinkedAnimeEntry])
     validated_linked_ids = linked_ids_adapter.validate_python(annid_linked_ids)
@@ -328,10 +441,14 @@ def load_catalog() -> Catalog:
         songs_by_mal_id=_freeze_row_map(songs_by_mal),
         songs_by_ann_song_id=_freeze_row_map(songs_by_ann_song),
         songs_by_amq_song_id=_freeze_row_map(songs_by_amq_song),
+        genres_by_ann_id=genres_by_ann_id,
+        tags_by_ann_id=tags_by_ann_id,
+        genre_by_lower=genre_by_lower,
+        tag_by_lower=tag_by_lower,
         artist_autocomplete_values=tuple(sorted(artist_autocomplete_values, key=str.lower)),
         song_name_autocomplete_values=tuple(sorted(song_name_autocomplete_values, key=len)),
         annid_linked_ids_json=linked_ids_json,
         annid_linked_ids_gzip=gzip.compress(linked_ids_json, compresslevel=9),
         annid_linked_ids_etag=linked_ids_etag,
-        database_totals=database_totals,
+        database_stats=database_stats,
     )

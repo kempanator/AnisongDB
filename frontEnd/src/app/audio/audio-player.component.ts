@@ -1,4 +1,4 @@
-import { afterNextRender, ChangeDetectionStrategy, Component, computed, CUSTOM_ELEMENTS_SCHEMA, effect, ElementRef, inject, OnDestroy, viewChild } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, CUSTOM_ELEMENTS_SCHEMA, effect, ElementRef, inject, OnDestroy, signal, viewChild } from '@angular/core';
 import { LocalMediaStorage, MediaPlayer } from 'vidstack';
 import { getSongPlaybackSource } from '../songs/song';
 import { UserPreferencesService } from '../settings/user-preferences.service';
@@ -19,25 +19,12 @@ class SessionMediaStorage extends LocalMediaStorage {
   selector: 'app-audio-player',
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <div class="audio-player" [title]="playerTitle()">
-      <media-player #player [storage]="storage">
-        <media-provider></media-provider>
-        <media-audio-layout [attr.color-scheme]="preferences.preferences().theme === 'light' ? 'light' : 'dark'"></media-audio-layout>
-      </media-player>
-    </div>
-  `,
-  styles: [`
-    .audio-player {
-      position: fixed;
-      right: 0;
-      bottom: 0;
-      left: 0;
-    }
-  `],
+  templateUrl: './audio-player.component.html',
+  styleUrls: ['./audio-player.component.css'],
 })
 export class AudioPlayerComponent implements OnDestroy {
   readonly playback = inject(AudioPlaybackService);
+  readonly playerVisible = signal(false);
   readonly storage = new SessionMediaStorage();
   readonly preferences = inject(UserPreferencesService);
   private readonly playerRef = viewChild<ElementRef<MediaPlayer>>('player');
@@ -100,6 +87,8 @@ export class AudioPlayerComponent implements OnDestroy {
       if (!source) {
         throw new Error('Song has no playable media source');
       }
+
+      this.playerVisible.set(true);
 
       if (this.loadedAnnSongId === command.song.annSongId) {
         if (command.type === 'restart') player.currentTime = 0;

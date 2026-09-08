@@ -106,6 +106,48 @@ class MediaLinksFilter(BaseModel):
         return self
 
 
+class AnimeLabelsFilter(BaseModel):
+    """Optional anime genre/tag filter using the same operators as media_links."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    require_any: list[str] = Field(default_factory=list, max_length=100)
+    require_all: list[str] = Field(default_factory=list, max_length=100)
+    exclude: list[str] = Field(default_factory=list, max_length=100)
+
+    @field_validator("require_any", "require_all", "exclude", mode="before")
+    @classmethod
+    def normalize_labels(cls, value):
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            return value
+        return [item.strip() if isinstance(item, str) else item for item in value]
+
+    @field_validator("require_any", "require_all", "exclude")
+    @classmethod
+    def reject_blank_or_long_labels(cls, value):
+        for item in value:
+            if not isinstance(item, str) or not item:
+                raise ValueError("Each label must be a non-empty string.")
+            if len(item) > MAX_TEXT_FIELD_LENGTH:
+                raise ValueError(
+                    f"Each label must be at most {MAX_TEXT_FIELD_LENGTH} characters."
+                )
+        return value
+
+    @model_validator(mode="after")
+    def reject_impossible_requirements(self):
+        required_any = set(self.require_any)
+        required_all = set(self.require_all)
+        excluded = set(self.exclude)
+        if required_all & excluded:
+            raise ValueError("A label cannot be both required and excluded.")
+        if required_any and required_any <= excluded:
+            raise ValueError("At least one require_any label must not be excluded.")
+        return self
+
+
 class SeasonFilter(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -157,6 +199,8 @@ class SongFilterOptions(BaseModel):
     season: SeasonFilter | None = None
     difficulty: DifficultyFilter | None = None
     media_links: MediaLinksFilter | None = None
+    genres: AnimeLabelsFilter | None = None
+    tags: AnimeLabelsFilter | None = None
 
     @field_validator("song_types", "broadcasts", "song_categories", "anime_types", mode="before")
     @classmethod
@@ -209,6 +253,16 @@ class SearchRequest(FilteredRequest):
                         "require_any": ["audio", "mq"],
                         "require_all": [],
                         "exclude": ["hq"],
+                    },
+                    "genres": {
+                        "require_any": ["Action", "Comedy"],
+                        "require_all": [],
+                        "exclude": ["Ecchi"],
+                    },
+                    "tags": {
+                        "require_any": ["School"],
+                        "require_all": [],
+                        "exclude": [],
                     },
                 },
             }
@@ -333,7 +387,19 @@ class SongEntry(BaseModel):
     arrangers: list[Artist]
 
 
-class DatabaseTotals(BaseModel):
+class DatabaseStatsMissingData(BaseModel):
+    songs_without_difficulty: int
+    songs_without_length: int
+    songs_without_season: int
+    songs_without_genre: int
+    songs_without_tag: int
+    songs_without_links: int
+    anime_without_genre: int
+    anime_without_tag: int
+    anime_without_season: int
+
+
+class DatabaseStats(BaseModel):
     total_songs: int
     total_anime: int
     total_artists: int
@@ -343,6 +409,16 @@ class DatabaseTotals(BaseModel):
     songs_by_broadcast: dict[str, int]
     songs_by_performance: dict[str, int]
     songs_by_anime_type: dict[str, int]
+    # Index = difficulty 0..100 (null difficulties are only in missing_data).
+    songs_by_difficulty: list[int]
+    # Index = floor(songLength) seconds; length of the list is max observed + 1.
+    songs_by_length: list[int]
+    songs_by_season: dict[str, int]
+    songs_by_genre: dict[str, int]
+    songs_by_tag: dict[str, int]
+    # Map of song-count → number of anime with that many songs (keys are decimal strings).
+    songs_per_anime: dict[str, int]
+    missing_data: DatabaseStatsMissingData
 
 
 class AnnIdBulkLinkedIds(BaseModel):

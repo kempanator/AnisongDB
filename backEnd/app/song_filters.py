@@ -82,6 +82,27 @@ class MediaLinksRequirements:
 
 
 @dataclass(frozen=True)
+class LabelSetRequirements:
+    """Anime genre/tag membership rules (same shape as media_links)."""
+
+    require_any: frozenset[str]
+    require_all: frozenset[str]
+    exclude: frozenset[str]
+
+    def is_empty(self) -> bool:
+        return not (self.require_any or self.require_all or self.exclude)
+
+    def matches(self, available: frozenset[str]) -> bool:
+        if self.require_any and self.require_any.isdisjoint(available):
+            return False
+        if self.require_all and not self.require_all <= available:
+            return False
+        if self.exclude and not self.exclude.isdisjoint(available):
+            return False
+        return True
+
+
+@dataclass(frozen=True)
 class SongFilters:
     song_types: frozenset[int]
     broadcasts: frozenset[str]
@@ -93,6 +114,10 @@ class SongFilters:
     difficulty_end: float | None
     include_no_difficulty: bool
     media_links: MediaLinksRequirements | None
+    genres: LabelSetRequirements | None
+    tags: LabelSetRequirements | None
+    genres_by_ann_id: AnimeLabelsByAnnId
+    tags_by_ann_id: AnimeLabelsByAnnId
 
     def matches_all(self) -> bool:
         """Return whether every known filter value is enabled."""
@@ -107,12 +132,24 @@ class SongFilters:
             and self.difficulty_end is None
             and not self.include_no_difficulty
             and (self.media_links is None or self.media_links.is_empty())
+            and (self.genres is None or self.genres.is_empty())
+            and (self.tags is None or self.tags.is_empty())
         )
 
     def matches_row(self, song: SongFullRow) -> bool:
         """True when a raw songsFull row matches these filters."""
         if self.media_links is not None and not self.media_links.matches(song):
             return False
+
+        if self.genres is not None and not self.genres.is_empty():
+            available = self.genres_by_ann_id.get(song[COL_ANN_ID], frozenset())
+            if not self.genres.matches(available):
+                return False
+
+        if self.tags is not None and not self.tags.is_empty():
+            available = self.tags_by_ann_id.get(song[COL_ANN_ID], frozenset())
+            if not self.tags.matches(available):
+                return False
 
         if self.season_start or self.season_end:
             song_season = _season_index(song[COL_ANIME_VINTAGE])

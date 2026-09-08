@@ -46,6 +46,7 @@
   --audio-volume-bg: var(--player);
   --media-menu-bg: var(--player);
   --media-slider-value-bg: var(--player);
+  --media-slider-value-color: var(--text);
 }
 
 [data-theme="dark"] {
@@ -116,6 +117,8 @@
   --border: #d1d5db;
   --track: #d1d5db;
   --player: #f3f4f6;
+
+  --audio-slider-value-border: 1px solid var(--border);
 }
 
 html {
@@ -167,6 +170,7 @@ a:hover {
   min-width: 0;
   height: 32px;
   border: 1px solid var(--border);
+  border-radius: 0;
   background-color: var(--surface-2);
   color: var(--text);
   font: inherit;

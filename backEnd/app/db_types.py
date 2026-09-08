@@ -47,9 +47,23 @@ AnimeDatabase = dict[int, AnimeCatalogEntry]
 SongRowsByExternalId = dict[int, tuple[SongFullRow, ...]]  # external ID -> rows
 SongIdReverseMap = dict[int, tuple[int, ...]]  # credited artist/composer ID -> songs.id
 ArtistIdResolutionCache = dict[tuple[str, bool], list[int]]  # (compiled regex text, case-sensitive flag) -> resolved artist/composer IDs
+AnimeLabelsByAnnId = dict[int, frozenset[str]]  # annId -> genres or tags
+LabelCanonicalMap = dict[str, str]  # lowercased label -> DB spelling
 
 
-class DatabaseTotalsPayload(TypedDict):
+class DatabaseStatsMissingData(TypedDict):
+    songs_without_difficulty: int
+    songs_without_length: int
+    songs_without_season: int
+    songs_without_genre: int
+    songs_without_tag: int
+    songs_without_links: int
+    anime_without_genre: int
+    anime_without_tag: int
+    anime_without_season: int
+
+
+class DatabaseStatsPayload(TypedDict):
     total_songs: int
     total_anime: int
     total_artists: int
@@ -59,6 +73,13 @@ class DatabaseTotalsPayload(TypedDict):
     songs_by_broadcast: dict[str, int]
     songs_by_performance: dict[str, int]
     songs_by_anime_type: dict[str, int]
+    songs_by_difficulty: list[int]
+    songs_by_length: list[int]
+    songs_by_season: dict[str, int]
+    songs_by_genre: dict[str, int]
+    songs_by_tag: dict[str, int]
+    songs_per_anime: dict[str, int]
+    missing_data: DatabaseStatsMissingData
 
 
 class DatabaseQueryError(RuntimeError):
