@@ -602,36 +602,33 @@
 
         <div class="advanced-search-filter-row">
           <span class="advanced-search-filter-label">Season</span>
-          <div class="advanced-search-season-range">
-            <label for="search-adv-input-season-start">
-              <span>From</span>
-              <input
-                id="search-adv-input-season-start"
-                #seasonRangeStartInput
-                class="app-input"
-                type="text"
-                maxlength="11"
-                placeholder="Season Year"
-                [value]="form.seasonRangeStart"
-                (keyup.enter)="submitSearch()"
-                (input)="form.seasonRangeStart = seasonRangeStartInput.value"
-              />
-            </label>
-            <label for="search-adv-input-season-end">
-              <span>To</span>
-              <input
-                id="search-adv-input-season-end"
-                #seasonRangeEndInput
-                class="app-input"
-                type="text"
-                maxlength="11"
-                placeholder="Season Year"
-                [value]="form.seasonRangeEnd"
-                (keyup.enter)="submitSearch()"
-                (input)="form.seasonRangeEnd = seasonRangeEndInput.value"
-              />
-            </label>
-          </div>
+          <input
+            id="search-adv-input-season-range"
+            #seasonRangeInput
+            class="app-input advanced-search-filter-input"
+            type="text"
+            maxlength="27"
+            placeholder="Season Year - Season Year"
+            [value]="form.seasonRange"
+            (keyup.enter)="submitSearch()"
+            (input)="form.seasonRange = seasonRangeInput.value"
+          />
+        </div>
+
+        <div class="advanced-search-filter-row">
+          <span class="advanced-search-filter-label">Difficulty</span>
+          <input
+            id="search-adv-input-difficulty-range"
+            #difficultyRangeInput
+            class="app-input advanced-search-filter-input"
+            type="text"
+            inputmode="decimal"
+            maxlength="13"
+            placeholder="0 - 50"
+            [value]="form.difficultyRange"
+            (keyup.enter)="submitSearch()"
+            (input)="form.difficultyRange = difficultyRangeInput.value"
+          />
         </div>
       </section>
     </div>

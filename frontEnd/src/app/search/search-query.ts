@@ -164,8 +164,8 @@ type SearchFormState = {
   advancedSearchFieldMode: AdvancedSearchFieldMode;
   advancedLookupType: AdvancedLookupType;
   advancedLookupValue: string;
-  seasonRangeStart: string;
-  seasonRangeEnd: string;
+  seasonRange: string;
+  difficultyRange: string;
   maximumOtherPeople: string;
   minimumGroupMembers: string;
   combination: SearchCombination;
@@ -193,8 +193,8 @@ export function createDefaultSearchFormState(): SearchFormState {
     advancedSearchFieldMode: 'text',
     advancedLookupType: 'season',
     advancedLookupValue: '',
-    seasonRangeStart: '',
-    seasonRangeEnd: '',
+    seasonRange: '',
+    difficultyRange: '',
     maximumOtherPeople: '99',
     minimumGroupMembers: '0',
     combination: 'or',
@@ -228,6 +228,47 @@ export function createDefaultSearchFormState(): SearchFormState {
 
 function parseSeasonQuery(text: string): string | null {
   return parseAnimeSeason(text)?.label ?? null;
+}
+
+type SearchRange<T> = {
+  start?: T;
+  end?: T;
+};
+
+function parseRangeQuery<T>(
+  text: string,
+  parseValue: (value: string) => T | null,
+): SearchRange<T> | null | undefined {
+  const input = text.trim();
+  if (!input) return undefined;
+
+  const values = input.split(/\s*[-\u2013\u2014]\s*/);
+  if (values.length > 2) return null;
+
+  if (values.length === 1) {
+    const value = parseValue(values[0]);
+    return value === null ? null : { start: value, end: value };
+  }
+
+  const [startInput, endInput] = values;
+  if (!startInput && !endInput) return undefined;
+
+  const start = startInput ? parseValue(startInput) : undefined;
+  const end = endInput ? parseValue(endInput) : undefined;
+  if ((startInput && start === null) || (endInput && end === null)) return null;
+
+  return {
+    start: start ?? undefined,
+    end: end ?? undefined,
+  };
+}
+
+function parseDifficultyQuery(text: string): number | null {
+  const input = text.trim().replace(/%$/, '');
+  if (!/^(?:\d+(?:\.\d+)?|\.\d+)$/.test(input)) return null;
+
+  const difficulty = Number(input);
+  return difficulty >= 0 && difficulty <= 100 ? difficulty : null;
 }
 
 function parseIdListQuery(text: string): ParsedIdListQuery | null {
@@ -346,15 +387,14 @@ function buildAdvancedSearchCommand(
     return invalidSearch('At least one anime type filter (TV, Movie, OVA, ONA, Special, Other) must be enabled.');
   }
 
-  const seasonStartInput = state.seasonRangeStart.trim();
-  const seasonEndInput = state.seasonRangeEnd.trim();
-  const seasonStart = seasonStartInput ? parseSeasonQuery(seasonStartInput) : undefined;
-  const seasonEnd = seasonEndInput ? parseSeasonQuery(seasonEndInput) : undefined;
-  if (seasonStartInput && !seasonStart) {
-    return invalidSearch('Enter the From season like "Winter 2020".');
+  const seasonRange = parseRangeQuery(state.seasonRange, parseSeasonQuery);
+  if (seasonRange === null) {
+    return invalidSearch('Enter a season or range like "Winter 2020", "Winter 2020 - Fall 2024", or "- Fall 2024".');
   }
-  if (seasonEndInput && !seasonEnd) {
-    return invalidSearch('Enter the To season like "Fall 2024".');
+
+  const difficultyRange = parseRangeQuery(state.difficultyRange, parseDifficultyQuery);
+  if (difficultyRange === null) {
+    return invalidSearch('Enter a difficulty from 0 to 100, or a range like "20 - 80", "20 -", or "- 80".');
   }
 
   const filters: Pick<SongSearchBody, 'filters'> = {
@@ -363,9 +403,8 @@ function buildAdvancedSearchCommand(
       broadcasts,
       song_categories: songCategories,
       anime_types: animeTypes,
-      season: seasonStart || seasonEnd
-        ? { start: seasonStart ?? undefined, end: seasonEnd ?? undefined }
-        : undefined,
+      season: seasonRange,
+      difficulty: difficultyRange,
       media_links: state.filters.includeNoLinks
         ? undefined
         : { require_any: [...ALL_SONG_LINK_TYPES] },

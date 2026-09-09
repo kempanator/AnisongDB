@@ -30,12 +30,18 @@ export interface SeasonFilter {
   end?: string;
 }
 
+export interface DifficultyFilter {
+  start?: number;
+  end?: number;
+}
+
 export interface SongSearchFilters {
   song_types?: SongType[];
   broadcasts?: BroadcastType[];
   song_categories?: SongCategory[];
   anime_types?: AnimeType[];
   season?: SeasonFilter;
+  difficulty?: DifficultyFilter;
   media_links?: MediaLinksFilter;
 }
 
