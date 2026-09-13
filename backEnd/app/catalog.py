@@ -2,6 +2,7 @@
 
 import gzip
 import hashlib
+import json
 import random
 from collections import Counter, defaultdict
 from dataclasses import dataclass
@@ -44,6 +45,8 @@ class Catalog:
     annid_linked_ids_json: bytes
     annid_linked_ids_gzip: bytes
     annid_linked_ids_etag: str
+    catalog_dump_gzip: bytes
+    catalog_dump_etag: str
     database_stats: DatabaseStatsPayload
 
     def resolve_artist_ids(
@@ -200,6 +203,89 @@ def _season_sort_key(value: str) -> tuple[bool, int, str]:
     if index is None:
         return (True, 0, value)
     return (False, index, value)
+
+
+def _build_catalog_dump(
+    song_rows: tuple[SongFullRow, ...],
+    artists_by_id: ArtistDatabase,
+    genres_by_ann_id: AnimeLabelsByAnnId,
+    tags_by_ann_id: AnimeLabelsByAnnId,
+) -> tuple[bytes, str]:
+    """Build gzip JSON of {anime, artists, songs} with credit IDs, not expanded objects."""
+    anime: dict[str, dict[str, Any]] = {}
+    songs: list[dict[str, Any]] = []
+    for song in song_rows:
+        ann_id = song[COL_ANN_ID]
+        ann_key = str(ann_id)
+        if ann_key not in anime:
+            alt_names = song[COL_ROMAJI_ALT_NAMES]
+            anime[ann_key] = {
+                "animeJPName": song[COL_ANIME_JP_NAME],
+                "animeENName": song[COL_ANIME_EN_NAME],
+                "animeAltName": alt_names.split("\\$") if alt_names else [],
+                "animeVintage": song[COL_ANIME_VINTAGE],
+                "animeType": song[COL_ANIME_TYPE],
+                "animeCategory": song[COL_ANIME_CATEGORY],
+                "linked_ids": {
+                    "myanimelist": song[COL_MAL_ID],
+                    "anidb": song[COL_ANIDB_ID],
+                    "anilist": song[COL_ANILIST_ID],
+                    "kitsu": song[COL_KITSU_ID],
+                },
+                "genres": sorted(genres_by_ann_id.get(ann_id, ())),
+                "tags": sorted(tags_by_ann_id.get(ann_id, ())),
+            }
+        songs.append(
+            {
+                "annId": ann_id,
+                "annSongId": song[COL_ANN_SONG_ID],
+                "amqSongId": song[COL_AMQ_SONG_ID],
+                "songType": song[COL_SONG_TYPE],
+                "songNumber": song[COL_SONG_NUMBER],
+                "songCategory": song[COL_SONG_CATEGORY],
+                "songName": song[COL_ROMAJI_SONG_NAME],
+                "songArtist": song[COL_ROMAJI_SONG_ARTIST] or "",
+                "songComposer": song[COL_ROMAJI_SONG_COMPOSER] or "",
+                "songArranger": song[COL_ROMAJI_SONG_ARRANGER] or "",
+                "songDifficulty": song[COL_SONG_DIFFICULTY],
+                "isDub": song[COL_IS_DUB],
+                "isRebroadcast": song[COL_IS_REBROADCAST],
+                "songLength": song[COL_SONG_LENGTH],
+                "HQ": song[COL_HQ],
+                "MQ": song[COL_MQ],
+                "audio": song[COL_AUDIO],
+                "artists": utils.parse_credits(song[COL_ARTISTS], song[COL_ARTISTS_LINE_UP]),
+                "composers": utils.parse_credits(song[COL_COMPOSERS], song[COL_COMPOSERS_LINE_UP]),
+                "arrangers": utils.parse_credits(song[COL_ARRANGERS], song[COL_ARRANGERS_LINE_UP]),
+            }
+        )
+
+    artists: dict[str, dict[str, Any]] = {}
+    for artist_id, artist in artists_by_id.items():
+        artists[artist_id] = {
+            "names": artist["names"],
+            "type": artist["type"],
+            "disambiguation": artist["disambiguation"],
+            "groups": [[group_id, line_up] for group_id, line_up in artist["groups"]],
+            "line_ups": [
+                {
+                    "line_up_type": line_up["line_up_type"],
+                    "members": [
+                        [member_id, member_line_up]
+                        for member_id, member_line_up in line_up["members"]
+                    ],
+                }
+                for line_up in artist["line_ups"]
+            ],
+        }
+
+    payload_json = json.dumps(
+        {"anime": anime, "artists": artists, "songs": songs},
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    etag = f'W/"{hashlib.sha256(payload_json).hexdigest()}"'
+    return gzip.compress(payload_json, compresslevel=9), etag
 
 
 def load_catalog() -> Catalog:
@@ -427,6 +513,9 @@ def load_catalog() -> Catalog:
         by_alias=False,
     )
     linked_ids_etag = f'W/"{hashlib.sha256(linked_ids_json).hexdigest()}"'
+    catalog_dump_gzip, catalog_dump_etag = _build_catalog_dump(
+        song_rows, artists_by_id, genres_by_ann_id, tags_by_ann_id
+    )
 
     return Catalog(
         song_rows=song_rows,
@@ -450,5 +539,7 @@ def load_catalog() -> Catalog:
         annid_linked_ids_json=linked_ids_json,
         annid_linked_ids_gzip=gzip.compress(linked_ids_json, compresslevel=9),
         annid_linked_ids_etag=linked_ids_etag,
+        catalog_dump_gzip=catalog_dump_gzip,
+        catalog_dump_etag=catalog_dump_etag,
         database_stats=database_stats,
     )

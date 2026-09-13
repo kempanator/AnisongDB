@@ -604,6 +604,26 @@ def anime_name_autocomplete(
     return catalog.autocomplete_anime_names(songName, songArtist)
 
 
+@app.get("/api/catalog_dump", include_in_schema=False)
+def catalog_dump(
+    request: Request,
+    catalog: Catalog = Depends(get_catalog),
+):
+    headers = {
+        "Cache-Control": "public, max-age=3600",
+        "ETag": catalog.catalog_dump_etag,
+        "Content-Encoding": "gzip",
+        "Vary": "Accept-Encoding",
+    }
+    if request.headers.get("if-none-match") == catalog.catalog_dump_etag:
+        return Response(status_code=304, headers=headers)
+    return Response(
+        content=catalog.catalog_dump_gzip,
+        media_type="application/json",
+        headers=headers,
+    )
+
+
 # Return a .json dict containing every key annId value linked_ids
 @app.get(
     "/api/annid_linked_ids",

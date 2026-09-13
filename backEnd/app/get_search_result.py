@@ -71,16 +71,6 @@ def _format_songs(
     return [utils.format_song(catalog.artists_by_id, song) for song in songs]
 
 
-def _parse_credits(ids_col: str, line_up_col: str) -> Credits:
-    """Parse parallel comma-separated credit columns into an immutable credit tuple."""
-    if not ids_col:
-        return ()
-    return tuple(
-        (int(credit_id), int(line_up))
-        for credit_id, line_up in zip(ids_col.split(","), line_up_col.split(","))
-    )
-
-
 def _build_artist_credit_targets(
     catalog: Catalog,
     artist_ids: list[int],
@@ -181,7 +171,7 @@ def _check_meets_artists_requirements(
     """True if the song's credited performers satisfy the artist search constraints."""
     return _credits_match_targets(
         catalog.flatten_credits(
-            _parse_credits(song[COL_ARTISTS], song[COL_ARTISTS_LINE_UP])
+            utils.parse_credits(song[COL_ARTISTS], song[COL_ARTISTS_LINE_UP])
         ),
         credit_targets,
         group_granularity,
@@ -200,9 +190,9 @@ def _check_meets_composers_requirements(
     """True if the song's composer/arranger credits satisfy the composer search constraints."""
     song_composers: list[CreditPair] = []
     if song[COL_COMPOSERS]:
-        song_composers.extend(_parse_credits(song[COL_COMPOSERS], song[COL_COMPOSERS_LINE_UP]))
+        song_composers.extend(utils.parse_credits(song[COL_COMPOSERS], song[COL_COMPOSERS_LINE_UP]))
     if arrangement and song[COL_ARRANGERS]:
-        song_composers.extend(_parse_credits(song[COL_ARRANGERS], song[COL_ARRANGERS_LINE_UP]))
+        song_composers.extend(utils.parse_credits(song[COL_ARRANGERS], song[COL_ARRANGERS_LINE_UP]))
 
     return _credits_match_targets(
         catalog.flatten_credits(tuple(song_composers)),
