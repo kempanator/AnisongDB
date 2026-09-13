@@ -17,30 +17,7 @@ import { AppModalService } from './app-modal.service';
     SongInfoModalComponent,
     SongPlaylistPickerComponent,
   ],
-  template: `
-    @if (!activeModal()) {
-      <app-clipboard-popup-outlet />
-    }
-
-    @switch (activeModal()?.type) {
-      @case ('settings') {
-        <app-settings-dialog />
-      }
-      @case ('playlists') {
-        <app-playlist-dialog />
-      }
-      @case ('song-info') {
-        @if (activeSong(); as song) {
-          <app-song-info-modal [song]="song" />
-        }
-      }
-      @case ('playlist-picker') {
-        @if (activeSong(); as song) {
-          <app-song-playlist-picker [song]="song" />
-        }
-      }
-    }
-  `,
+  templateUrl: './app-modal-outlet.component.html',
 })
 export class AppModalOutletComponent {
   private readonly modals = inject(AppModalService);

@@ -16,6 +16,36 @@ def load_song_rows() -> tuple[SongFullRow, ...]:
         return tuple(run_sql_command(cursor, "SELECT * FROM songsFull"))
 
 
+def load_anime_label_maps() -> tuple[
+    AnimeLabelsByAnnId,
+    AnimeLabelsByAnnId,
+    LabelCanonicalMap,
+    LabelCanonicalMap,
+]:
+    """Load anime genre/tag membership and lowercased→canonical name maps."""
+    with database_cursor() as cursor:
+        genre_rows = run_sql_command(cursor, "SELECT annId, genre FROM link_anime_genre")
+        tag_rows = run_sql_command(cursor, "SELECT annId, tag FROM link_anime_tag")
+
+    genres_by_ann_id, genre_by_lower = _index_anime_labels(genre_rows)
+    tags_by_ann_id, tag_by_lower = _index_anime_labels(tag_rows)
+    return genres_by_ann_id, tags_by_ann_id, genre_by_lower, tag_by_lower
+
+
+def _index_anime_labels(
+    rows: list[tuple[Any, ...]],
+) -> tuple[AnimeLabelsByAnnId, LabelCanonicalMap]:
+    """Group (annId, label) rows into per-anime sets and a canonical name map."""
+    by_ann: dict[int, set[str]] = {}
+    by_lower: LabelCanonicalMap = {}
+    for ann_id, label in rows:
+        if not label:
+            continue
+        by_ann.setdefault(ann_id, set()).add(label)
+        by_lower.setdefault(label.lower(), label)
+    return {ann_id: frozenset(labels) for ann_id, labels in by_ann.items()}, by_lower
+
+
 def load_artist_database() -> ArtistDatabase:
     """Load artist names, groups, and lineups during application startup."""
     with database_cursor() as cursor:

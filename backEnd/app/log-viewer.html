@@ -4,6 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
   <title>AnisongDB Log Viewer</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.2.0/css/all.min.css"
     crossorigin="anonymous" referrerpolicy="no-referrer">
@@ -840,6 +841,17 @@
       },
     ];
 
+    const REQUIREMENT_FILTERS = [
+      {
+        key: "media_links",
+        label: "Links",
+        separator: " ",
+        values: { audio: "audio", mq: "480p", hq: "720p" },
+      },
+      { key: "genres", label: "Genres" },
+      { key: "tags", label: "Tags" },
+    ];
+
     const LOOKUP_ID_FIELDS = [
       ["artist_ids", "Artist IDs"],
       ["composer_ids", "Composer IDs"],
@@ -1517,22 +1529,28 @@
       return { text: `${group.label}: ${on.join(" ")}`, cls: "badge-gray badge-outline", omit: false };
     }
 
-    function linkFilterBadges(body) {
-      const mediaLinks = body.filters?.media_links;
-      if (!mediaLinks || typeof mediaLinks !== "object") return [];
+    /** Badges for filters that support require-any, require-all, and exclude operators. */
+    function requirementFilterBadges(body, group) {
+      const filter = body.filters?.[group.key];
+      if (!filter || typeof filter !== "object") return [];
 
-      const labels = { audio: "audio", mq: "480p", hq: "720p" };
       const badges = [];
       for (const [key, label] of [
         ["require_any", "any"],
         ["require_all", "all"],
         ["exclude", "without"],
       ]) {
-        const values = Array.isArray(mediaLinks[key])
-          ? mediaLinks[key].map((value) => labels[String(value).toLowerCase()] || String(value))
+        const values = Array.isArray(filter[key])
+          ? filter[key].map((value) => {
+              const text = String(value);
+              return group.values?.[text.toLowerCase()] || text;
+            })
           : [];
         if (values.length) {
-          badges.push({ text: `Links ${label}: ${values.join(" ")}`, cls: "badge-gray badge-outline" });
+          badges.push({
+            text: `${group.label} ${label}: ${values.join(group.separator || ", ")}`,
+            cls: "badge-gray badge-outline",
+          });
         }
       }
       return badges;
@@ -1667,8 +1685,10 @@
         }
       }
 
-      for (const b of linkFilterBadges(body)) {
-        badges.push(`<span class="badge ${b.cls}">${escapeHtml(b.text)}</span>`);
+      for (const group of REQUIREMENT_FILTERS) {
+        for (const b of requirementFilterBadges(body, group)) {
+          badges.push(`<span class="badge ${b.cls}">${escapeHtml(b.text)}</span>`);
+        }
       }
       const season = seasonFilterBadge(body);
       if (season) badges.push(`<span class="badge ${season.cls}">${escapeHtml(season.text)}</span>`);

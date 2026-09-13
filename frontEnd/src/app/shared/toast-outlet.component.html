@@ -1,0 +1,10 @@
+@if (notifications.state(); as notification) {
+  <div
+    class="app-toast"
+    [class.app-toast-exit]="notification.phase === 'exiting'"
+    role="status"
+    aria-live="polite"
+  >
+    {{ notification.message }}
+  </div>
+}

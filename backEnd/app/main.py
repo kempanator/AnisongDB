@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 import time
 
-from fastapi import Depends, FastAPI, Query, Request
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,7 +13,7 @@ import get_search_result
 import request_log
 import utils
 from catalog import Catalog, load_catalog
-from song_filters import MediaLinksRequirements, SongFilters
+from song_filters import LabelSetRequirements, MediaLinksRequirements, SongFilters
 from schemas import *
 from db_types import *
 
@@ -131,7 +131,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 
 # Resolve validated API filter values to the database values used by SongFilters.
-def resolve_song_filters(query) -> SongFilters:
+def resolve_song_filters(query, catalog: Catalog) -> SongFilters:
     filters = query.filters
 
     return SongFilters(
@@ -159,7 +159,53 @@ def resolve_song_filters(query) -> SongFilters:
             if filters.media_links is not None
             else None
         ),
+        genres=_resolve_label_set_requirements(
+            filters.genres, catalog.genre_by_lower, "genre"
+        ),
+        tags=_resolve_label_set_requirements(
+            filters.tags, catalog.tag_by_lower, "tag"
+        ),
+        genres_by_ann_id=catalog.genres_by_ann_id,
+        tags_by_ann_id=catalog.tags_by_ann_id,
     )
+
+
+def _resolve_label_set_requirements(
+    label_filter: AnimeLabelsFilter | None,
+    by_lower: LabelCanonicalMap,
+    kind: str,
+) -> LabelSetRequirements | None:
+    """Canonicalize genre/tag names against the catalog; reject unknowns with 422."""
+    if label_filter is None:
+        return None
+
+    return LabelSetRequirements(
+        require_any=_canonicalize_labels(label_filter.require_any, by_lower, kind),
+        require_all=_canonicalize_labels(label_filter.require_all, by_lower, kind),
+        exclude=_canonicalize_labels(label_filter.exclude, by_lower, kind),
+    )
+
+
+def _canonicalize_labels(
+    values: list[str],
+    by_lower: LabelCanonicalMap,
+    kind: str,
+) -> frozenset[str]:
+    canonical: list[str] = []
+    unknown: list[str] = []
+    for value in values:
+        resolved = by_lower.get(value.lower())
+        if resolved is None:
+            unknown.append(value)
+        else:
+            canonical.append(resolved)
+    if unknown:
+        unknown_list = ", ".join(repr(label) for label in unknown)
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unknown {kind}(s): {unknown_list}.",
+        )
+    return frozenset(canonical)
 
 
 # Return 50 random songs, no filters applied, legacy endpoint called on front end page load, do not log
@@ -179,7 +225,7 @@ def get_n_random_songs(
 ):
     endpoint = "/api/get_n_random_songs"
 
-    filters = resolve_song_filters(query)
+    filters = resolve_song_filters(query, catalog)
     start = time.perf_counter()
     songs = catalog.random_songs(query.n, filters)
     song_list = [utils.format_song(catalog.artists_by_id, song) for song in songs]
@@ -226,7 +272,7 @@ def search_request(
             detail="Song name/artist/composer text search is disabled during ranked time",
         )
 
-    filters = resolve_song_filters(query)
+    filters = resolve_song_filters(query, catalog)
     start = time.perf_counter()
     song_list = get_search_result.get_search_results(
         catalog,
@@ -259,7 +305,7 @@ def artist_ids_request(
 ):
     endpoint = "/api/artist_ids_request"
 
-    filters = resolve_song_filters(query)
+    filters = resolve_song_filters(query, catalog)
     start = time.perf_counter()
     song_list = get_search_result.get_artist_ids_song_list(
         catalog,
@@ -289,7 +335,7 @@ def composer_ids_request(
 ):
     endpoint = "/api/composer_ids_request"
 
-    filters = resolve_song_filters(query)
+    filters = resolve_song_filters(query, catalog)
     start = time.perf_counter()
     song_list = get_search_result.get_composer_ids_song_list(
         catalog,
@@ -320,7 +366,7 @@ def annId_request(
 ):
     endpoint = "/api/annId_request"
 
-    filters = resolve_song_filters(query)
+    filters = resolve_song_filters(query, catalog)
     start = time.perf_counter()
     song_list = get_search_result.get_ann_ids_song_list(
         catalog,
@@ -348,7 +394,7 @@ def ann_ids_request(
 ):
     endpoint = "/api/ann_ids_request"
 
-    filters = resolve_song_filters(query)
+    filters = resolve_song_filters(query, catalog)
     start = time.perf_counter()
     song_list = get_search_result.get_ann_ids_song_list(
         catalog,
@@ -376,7 +422,7 @@ def mal_ids_request(
 ):
     endpoint = "/api/mal_ids_request"
 
-    filters = resolve_song_filters(query)
+    filters = resolve_song_filters(query, catalog)
     start = time.perf_counter()
     song_list = get_search_result.get_mal_ids_song_list(
         catalog,
@@ -404,7 +450,7 @@ def ann_song_ids_request(
 ):
     endpoint = "/api/ann_song_ids_request"
 
-    filters = resolve_song_filters(query)
+    filters = resolve_song_filters(query, catalog)
     start = time.perf_counter()
     song_list = get_search_result.get_ann_song_ids_song_list(
         catalog,
@@ -432,7 +478,7 @@ def amq_song_ids_request(
 ):
     endpoint = "/api/amq_song_ids_request"
 
-    filters = resolve_song_filters(query)
+    filters = resolve_song_filters(query, catalog)
     start = time.perf_counter()
     song_list = get_search_result.get_amq_song_ids_song_list(
         catalog,
@@ -489,7 +535,7 @@ def season_request(
             detail=error_detail,
         )
 
-    filters = resolve_song_filters(query)
+    filters = resolve_song_filters(query, catalog)
     start = time.perf_counter()
     song_list = get_search_result.get_season_song_list(
         catalog,
@@ -558,6 +604,26 @@ def anime_name_autocomplete(
     return catalog.autocomplete_anime_names(songName, songArtist)
 
 
+@app.get("/api/catalog_dump", include_in_schema=False)
+def catalog_dump(
+    request: Request,
+    catalog: Catalog = Depends(get_catalog),
+):
+    headers = {
+        "Cache-Control": "public, max-age=3600",
+        "ETag": catalog.catalog_dump_etag,
+        "Content-Encoding": "gzip",
+        "Vary": "Accept-Encoding",
+    }
+    if request.headers.get("if-none-match") == catalog.catalog_dump_etag:
+        return Response(status_code=304, headers=headers)
+    return Response(
+        content=catalog.catalog_dump_gzip,
+        media_type="application/json",
+        headers=headers,
+    )
+
+
 # Return a .json dict containing every key annId value linked_ids
 @app.get(
     "/api/annid_linked_ids",
@@ -592,9 +658,9 @@ async def get_ranked_time_status():
 
 
 # Return stats and song counts to monitor the DB
-@app.get("/api/database_totals", response_model=DatabaseTotals)
-def get_database_totals(catalog: Catalog = Depends(get_catalog)):
-    return DatabaseTotals(**catalog.database_totals)
+@app.get("/api/database_stats", response_model=DatabaseStats)
+def get_database_stats(catalog: Catalog = Depends(get_catalog)):
+    return DatabaseStats(**catalog.database_stats)
 
 
 # Serve log-viewer.html and request log JSON feed

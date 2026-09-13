@@ -237,6 +237,16 @@ def _format_credit_entry(
     return entry
 
 
+def parse_credits(ids_col: str | None, line_up_col: str | None) -> Credits:
+    """Parse parallel comma-separated credit columns into an immutable credit tuple."""
+    if not ids_col or line_up_col is None:
+        return ()
+    return tuple(
+        (int(credit_id), int(line_up))
+        for credit_id, line_up in zip(ids_col.split(","), line_up_col.split(","))
+    )
+
+
 def format_song(artist_database: ArtistDatabase, song: SongFullRow) -> FormattedSong:
     """Turn a raw songsFull DB tuple into the API SongEntry-shaped dict.
 
