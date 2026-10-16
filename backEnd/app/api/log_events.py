@@ -1,45 +1,33 @@
 """
-In-memory request log (JSON). Viewer URL segment from backEnd/.env (REQUEST_LOG_URL_SEGMENT).
+In-memory request log, served through the authenticated /api/log/feed endpoint.
 """
+
+from api.policy import is_private_api
 
 import hashlib
 import hmac
 import secrets
 import threading
-from pathlib import Path
+import sys
 from collections import deque
 from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import HTTPException
 from pydantic import BaseModel
+from starlette.requests import Request
+from starlette.types import Scope
+from settings import setting
 
 MAX_EVENTS = 1000
-_DEFAULT_URL_SEGMENT = "log"
-_ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
 _lock = threading.Lock()
 _counter = 0
+_stream_id = secrets.token_hex(16)
 _events: deque[dict[str, Any]] = deque(maxlen=MAX_EVENTS)
 
 
 def _read_env_value(key: str) -> str | None:
-    """Read a single KEY=value from backEnd/.env (no os.environ)."""
-    if not _ENV_PATH.is_file():
-        return None
-    for line in _ENV_PATH.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        name, _, value = line.partition("=")
-        if name.strip() == key:
-            return value.strip().strip('"').strip("'")
-    return None
-
-
-def get_request_log_path() -> str:
-    """URL path segment for the HTML viewer (default: log)."""
-    segment = (_read_env_value("REQUEST_LOG_URL_SEGMENT") or "").strip().strip("/")
-    return segment or _DEFAULT_URL_SEGMENT
+    return setting(key) or None
 
 
 def _read_env_bool(key: str, default: bool) -> bool:
@@ -71,13 +59,9 @@ def _serialize_body(body: Any) -> Any:
 
 
 def _client_ip(request: Any):
-    """Best-effort client IP (X-Forwarded-For first hop, else direct connection)."""
+    """Use the client address resolved by the server's trusted-proxy handling."""
     if request is None:
         return None
-
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip() or None
 
     conn = getattr(request, "client", None)
     if conn is not None:
@@ -100,7 +84,7 @@ def _ip_alias(ip: str | None) -> str | None:
         ip.encode("utf-8"),
         hashlib.sha256,
     ).hexdigest()
-    return f"anon-{digest[:12]}"
+    return digest[:6].upper()
 
 
 def _client_id(request: Any) -> str | None:
@@ -145,6 +129,9 @@ def _request_summary(body_data: Any) -> str:
         "composer_ids",
         "ann_ids",
         "mal_ids",
+        "anilist_ids",
+        "kitsu_ids",
+        "anidb_ids",
         "ann_song_ids",
         "amq_song_ids",
     ):
@@ -177,14 +164,8 @@ def record_request(
     errors: Any = None,
     raise_http_exception: bool = True,
 ) -> None:
-    """Log a request event and append it to the ring buffer."""
+    """Stage request metadata; HTTP middleware records the final status and duration."""
     body_data = _serialize_body(body)
-    summary = _request_summary(body_data)
-    if summary:
-        if duration_ms is not None:
-            summary += f" ({duration_ms}ms)"
-        print("LOG: " + summary, flush=True)
-
     payload: dict[str, Any] = {
         "endpoint": endpoint,
         "http_status": http_status,
@@ -203,6 +184,62 @@ def record_request(
             "duration_ms": duration_ms if duration_ms is not None else 0,
         }
 
+    if duration_ms is not None:
+        payload["duration_ms"] = duration_ms
+
+    state = request.scope.get("state", {}) if request is not None else {}
+    if state.get("_request_log_deferred"):
+        state["_request_log_event"] = payload
+    else:
+        _append_event(payload)
+
+    if http_status >= 400 and raise_http_exception:
+        raise HTTPException(status_code=http_status, detail=detail or reason or "Request failed")
+
+
+def finish_request(scope: Scope, http_status: int, duration_ms: int) -> None:
+    """Commit at response start (or unhandled failure), without logging feed polling."""
+    if is_private_api(scope["path"]):
+        return
+    state = scope.setdefault("state", {})
+    payload = state.pop("_request_log_event", None)
+    if payload is None:
+        if http_status < 400:
+            return
+        payload = {
+            "endpoint": scope["path"],
+            "body": None,
+            **_request_context(Request(scope)),
+        }
+
+    previous_status = payload.get("http_status")
+    payload["http_status"] = http_status
+    payload["duration_ms"] = duration_ms
+    if http_status >= 400:
+        payload.pop("result", None)
+        if previous_status != http_status:
+            payload.pop("errors", None)
+            payload["reason"] = "Internal server error" if http_status >= 500 else "Request failed"
+    elif "result" in payload:
+        # Keep the existing successful-result field for log feed consumers.
+        payload["result"]["duration_ms"] = duration_ms
+
+    _append_event(payload)
+
+
+def _append_event(payload: dict[str, Any]) -> None:
+    summary = _request_summary(payload["body"])
+    if summary:
+        if "duration_ms" in payload:
+            summary += f" ({payload['duration_ms']}ms)"
+        try:
+            print("LOG: " + summary, flush=True)
+        except UnicodeEncodeError:
+            # Windows consoles may use a legacy encoding; logging must not fail a search.
+            encoding = sys.stdout.encoding or "utf-8"
+            safe_summary = summary.encode(encoding, errors="backslashreplace").decode(encoding)
+            print("LOG: " + safe_summary, flush=True)
+
     with _lock:
         global _counter
         _counter += 1
@@ -212,11 +249,6 @@ def record_request(
                 "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
                 **payload,
             }
-        )
-
-    if http_status >= 400 and raise_http_exception:
-        raise HTTPException(
-            status_code=http_status, detail=detail or reason or "Request failed"
         )
 
 
@@ -237,4 +269,4 @@ def get_feed_payload(since: str | None = None, limit: int = 100):
         items = items[-max_limit:]
     latest_id = items[-1]["id"] if items else since
 
-    return {"events": items, "latest_id": latest_id}
+    return {"events": items, "latest_id": latest_id, "stream_id": _stream_id}

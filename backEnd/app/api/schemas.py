@@ -1,11 +1,13 @@
 """Public API request and response models."""
 
-from typing import Literal
+from collections.abc import Iterable
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic_core import PydanticCustomError
 
 MAX_TEXT_FIELD_LENGTH = 500
+SearchIdList = Annotated[list[int], Field(min_length=1, max_length=500)]
 SEASON_REGEX = r"^(Winter|Spring|Summer|Fall) \d{4}$"
 EMPTY_FILTER_MESSAGES = {
     "song_types": "At least one song type filter (opening, ending, insert) must be enabled.",
@@ -13,6 +15,22 @@ EMPTY_FILTER_MESSAGES = {
     "song_categories": "At least one performance filter (standard, character, chanting, instrumental, other) must be enabled.",
     "anime_types": "At least one anime type filter (tv, movie, ova, ona, special, other) must be enabled.",
 }
+
+
+def validate_requirements(
+    require_any: Iterable[str],
+    require_all: Iterable[str],
+    exclude: Iterable[str],
+    kind: str,
+) -> None:
+    """Reject contradictory membership rules, including after catalog canonicalization."""
+    required_any = set(require_any)
+    required_all = set(require_all)
+    excluded = set(exclude)
+    if required_all & excluded:
+        raise ValueError(f"A {kind} cannot be both required and excluded.")
+    if required_any and required_any <= excluded:
+        raise ValueError(f"At least one require_any {kind} must not be excluded.")
 
 
 class TextSearchFilter(BaseModel):
@@ -31,7 +49,15 @@ class TextSearchFilter(BaseModel):
     match_case: bool = False
 
 
-class ArtistSearchFilter(TextSearchFilter):
+class CreditSearchOptions(BaseModel):
+    # Minimum distinct expanded members, capped at each lineup's expanded size.
+    # 0 still requires an overlap; values above 0 also find member credits.
+    group_granularity: int = Field(0, ge=0)
+    # Max other performers on the song besides the match
+    max_other_artist: int = Field(99, ge=0)
+
+
+class ArtistSearchFilter(TextSearchFilter, CreditSearchOptions):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -44,13 +70,8 @@ class ArtistSearchFilter(TextSearchFilter):
         }
     )
 
-    # Min line-up members required on the song (0 = at least one). Above 0 also finds member credits
-    group_granularity: int = Field(0, ge=0)
-    # Max other performers on the song besides the match
-    max_other_artist: int = Field(99, ge=0)
 
-
-class ComposerSearchFilter(TextSearchFilter):
+class ComposerSearchFilter(ArtistSearchFilter):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -64,9 +85,6 @@ class ComposerSearchFilter(TextSearchFilter):
         }
     )
 
-    # Same as ArtistSearchFilter
-    group_granularity: int = Field(0, ge=0)
-    max_other_artist: int = Field(99, ge=0)
     # Match arranger credits too, not only composer
     arrangement: bool = True
 
@@ -96,13 +114,7 @@ class MediaLinksFilter(BaseModel):
 
     @model_validator(mode="after")
     def reject_impossible_requirements(self):
-        required_any = set(self.require_any)
-        required_all = set(self.require_all)
-        excluded = set(self.exclude)
-        if required_all & excluded:
-            raise ValueError("A link type cannot be both required and excluded.")
-        if required_any and required_any <= excluded:
-            raise ValueError("At least one require_any link type must not be excluded.")
+        validate_requirements(self.require_any, self.require_all, self.exclude, "link type")
         return self
 
 
@@ -138,13 +150,7 @@ class AnimeLabelsFilter(BaseModel):
 
     @model_validator(mode="after")
     def reject_impossible_requirements(self):
-        required_any = set(self.require_any)
-        required_all = set(self.require_all)
-        excluded = set(self.exclude)
-        if required_all & excluded:
-            raise ValueError("A label cannot be both required and excluded.")
-        if required_any and required_any <= excluded:
-            raise ValueError("At least one require_any label must not be excluded.")
+        validate_requirements(self.require_any, self.require_all, self.exclude, "label")
         return self
 
 
@@ -177,6 +183,23 @@ class DifficultyFilter(BaseModel):
         return self
 
 
+class SongLengthFilter(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # Song duration in seconds. Bounds are inclusive.
+    start: float | None = Field(None, ge=0)
+    end: float | None = Field(None, ge=0)
+    include_no_length: bool = False
+
+    @model_validator(mode="after")
+    def require_at_least_one_condition(self):
+        if self.start is None and self.end is None and not self.include_no_length:
+            raise ValueError(
+                "A song length filter requires a start, end, or include_no_length."
+            )
+        return self
+
+
 class SongFilterOptions(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -198,6 +221,7 @@ class SongFilterOptions(BaseModel):
     )
     season: SeasonFilter | None = None
     difficulty: DifficultyFilter | None = None
+    song_length: SongLengthFilter | None = None
     media_links: MediaLinksFilter | None = None
     genres: AnimeLabelsFilter | None = None
     tags: AnimeLabelsFilter | None = None
@@ -219,7 +243,11 @@ class FilteredRequest(BaseModel):
     filters: SongFilterOptions = Field(default_factory=SongFilterOptions)
 
 
-class SearchRequest(FilteredRequest):
+class SongSelectionRequest(FilteredRequest):
+    ignore_duplicate: bool = False
+
+
+class SearchRequest(SongSelectionRequest):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -249,6 +277,11 @@ class SearchRequest(FilteredRequest):
                         "end": 80,
                         "include_no_difficulty": False,
                     },
+                    "song_length": {
+                        "start": 60,
+                        "end": 120,
+                        "include_no_length": False,
+                    },
                     "media_links": {
                         "require_any": ["audio", "mq"],
                         "require_all": [],
@@ -274,7 +307,6 @@ class SearchRequest(FilteredRequest):
     artist_search_filter: ArtistSearchFilter | None = None
     composer_search_filter: ComposerSearchFilter | None = None
     and_logic: bool = True
-    ignore_duplicate: bool = False
 
     @model_validator(mode="after")
     def require_search_text(self):
@@ -289,52 +321,52 @@ class SearchRequest(FilteredRequest):
         return self
 
 
-class ArtistIdSearchRequest(FilteredRequest):
-    artist_ids: list[int] = Field(..., min_length=1, max_length=500)
-    group_granularity: int = Field(0, ge=0)
-    max_other_artist: int = Field(99, ge=0)
-    ignore_duplicate: bool = False
+class ArtistIdSearchRequest(SongSelectionRequest, CreditSearchOptions):
+    artist_ids: SearchIdList
 
 
-class ComposerIdSearchRequest(FilteredRequest):
-    composer_ids: list[int] = Field(..., min_length=1, max_length=500)
+class ComposerIdSearchRequest(SongSelectionRequest, CreditSearchOptions):
+    composer_ids: SearchIdList
     arrangement: bool = True
-    group_granularity: int = Field(0, ge=0)
-    max_other_artist: int = Field(99, ge=0)
-    ignore_duplicate: bool = False
 
 
-class AnnIdSearchRequest(FilteredRequest):
+class AnnIdSearchRequest(SongSelectionRequest):
     annId: int
-    ignore_duplicate: bool = False
 
 
-class AnnIdsSearchRequest(FilteredRequest):
-    ann_ids: list[int] = Field(..., min_length=1, max_length=500)
-    ignore_duplicate: bool = False
+class AnnIdsSearchRequest(SongSelectionRequest):
+    ann_ids: SearchIdList
 
 
-class MalIdsSearchRequest(FilteredRequest):
-    mal_ids: list[int] = Field(..., min_length=1, max_length=500)
-    ignore_duplicate: bool = False
+class MalIdsSearchRequest(SongSelectionRequest):
+    mal_ids: SearchIdList
 
 
-class AnnSongIdsSearchRequest(FilteredRequest):
-    ann_song_ids: list[int] = Field(..., min_length=1, max_length=500)
-    ignore_duplicate: bool = False
+class AnilistIdsSearchRequest(SongSelectionRequest):
+    anilist_ids: SearchIdList
 
 
-class AmqSongIdsSearchRequest(FilteredRequest):
-    amq_song_ids: list[int] = Field(..., min_length=1, max_length=500)
-    ignore_duplicate: bool = False
+class KitsuIdsSearchRequest(SongSelectionRequest):
+    kitsu_ids: SearchIdList
 
 
-class SeasonSearchRequest(FilteredRequest):
+class AnidbIdsSearchRequest(SongSelectionRequest):
+    anidb_ids: SearchIdList
+
+
+class AnnSongIdsSearchRequest(SongSelectionRequest):
+    ann_song_ids: SearchIdList
+
+
+class AmqSongIdsSearchRequest(SongSelectionRequest):
+    amq_song_ids: SearchIdList
+
+
+class SeasonSearchRequest(SongSelectionRequest):
     season: str = Field(..., max_length=MAX_TEXT_FIELD_LENGTH)
-    ignore_duplicate: bool = False
 
 
-class GetNSongsRequest(FilteredRequest):
+class GetNSongsRequest(SongSelectionRequest):
     model_config = ConfigDict(json_schema_extra={"example": {"n": 50}})
 
     n: int = Field(..., ge=1, le=500)
@@ -346,6 +378,10 @@ class Artist(BaseModel):
     line_up_id: int = -1
     groups: list["Artist"] | None = None
     members: list["Artist"] | None = None
+    type: Literal["person", "group", "choir"] | None = None
+    # Direct members of the credited lineup. For a group credited without a
+    # specific lineup, distinct members across its lineups.
+    member_count: int | None = None
 
 
 Artist.model_rebuild()
@@ -399,17 +435,134 @@ class DatabaseStatsMissingData(BaseModel):
     anime_without_season: int
 
 
+class DatabaseStatsCoverage(BaseModel):
+    present: int
+    total: int
+
+
+class CreditGapStatistics(BaseModel):
+    text_without_ids: int
+    no_text_or_ids: int
+
+
+class CreditRoleStatistics(BaseModel):
+    songs_with_ids: int
+    text_without_ids: int
+    no_text_or_ids: int
+    unique_direct_ids: int
+    direct_people: int
+    lineup_only_people: int
+    all_identified_people: int
+    specific_group_lineup_songs: int
+    unspecified_group_lineup_songs: int
+    songs_by_id_count: dict[str, int]
+    missing_ids_by_performance: dict[str, CreditGapStatistics]
+
+
+class ArtistGroupStatistics(BaseModel):
+    total: int
+    by_lineup_type: dict[str, int]
+    by_lineup_count: dict[str, int]
+    lineups_by_type: dict[str, int]
+    nested_groups: int
+
+
+class MostCreditedArtist(BaseModel):
+    id: int
+    name: str
+    type: str | None
+    disambiguation: str | None
+    unique_songs: int
+    anime_count: int
+
+
+class ArtistCreditStatistics(BaseModel):
+    types: dict[str, int]
+    directly_credited: int
+    roster_only: int
+    other_catalog_entries: int
+    role_combinations: dict[str, int]
+    aliases: dict[str, int]
+    groups: ArtistGroupStatistics
+    roles: dict[str, CreditRoleStatistics]
+    artists_by_unique_song_count: dict[str, int]
+    most_credited: dict[str, list[MostCreditedArtist]]
+
+
+class MeasurementSummary(BaseModel):
+    known: int
+    mean: float | None
+    median: float | None
+    q1: float | None
+    q3: float | None
+
+
+class SongSummary(BaseModel):
+    songs: int
+    anime: int
+    song_types: dict[str, int]
+    difficulty: MeasurementSummary
+    length: MeasurementSummary
+    media: int
+
+
+class SongDistribution(BaseModel):
+    summary: SongSummary
+    # Sparse integer-second/guess-rate histograms, matching the existing bucket rules.
+    difficulty: dict[str, int]
+    length: dict[str, int]
+
+
+class PeriodStatistics(BaseModel):
+    overall: SongSummary
+    song_type: dict[str, SongSummary]
+    anime_format: dict[str, SongSummary]
+
+
+class TopAnime(BaseModel):
+    ann_id: int
+    name: str
+    songs: int
+    song_types: dict[str, int]
+
+
+class AnimeSongStatistics(BaseModel):
+    anime: int
+    distribution: dict[str, int]
+    median: float | None
+    p90: float | None
+    maximum: int | None
+    most_songs: list[TopAnime]
+
+
+class SongAnalysis(BaseModel):
+    distributions: dict[str, dict[str, SongDistribution]]
+    seasons: dict[str, PeriodStatistics]
+    years: dict[str, PeriodStatistics]
+    songs_per_anime: dict[str, AnimeSongStatistics]
+    genres: dict[str, SongSummary]
+    tags: dict[str, SongSummary]
+
+
 class DatabaseStats(BaseModel):
+    # UTC timestamp written when the SQLite database was generated.
+    database_updated_at: str | None = None
     total_songs: int
+    # Distinct positive AMQ song IDs; songs without an AMQ ID are excluded.
+    total_unique_amq_songs: int
     total_anime: int
     total_artists: int
     total_seasons: int
     links_by_type: dict[str, int]
+    # Overlapping coverage totals for any video, all three formats, and no media.
+    links_by_coverage: dict[str, int]
+    # Mutually exclusive combinations, ordered with HQ + MQ + audio first.
+    links_by_combination: dict[str, int]
     songs_by_type: dict[str, int]
     songs_by_broadcast: dict[str, int]
     songs_by_performance: dict[str, int]
     songs_by_anime_type: dict[str, int]
-    # Index = difficulty 0..100 (null difficulties are only in missing_data).
+    # Index = difficulty 0..100; missing and nonpositive values are only in missing_data.
     songs_by_difficulty: list[int]
     # Index = floor(songLength) seconds; length of the list is max observed + 1.
     songs_by_length: list[int]
@@ -419,6 +572,11 @@ class DatabaseStats(BaseModel):
     # Map of song-count → number of anime with that many songs (keys are decimal strings).
     songs_per_anime: dict[str, int]
     missing_data: DatabaseStatsMissingData
+    original_name_coverage: dict[str, DatabaseStatsCoverage]
+    # List-site coverage counts anime; ANN/AMQ song-ID coverage counts song appearances.
+    external_id_coverage: dict[str, DatabaseStatsCoverage]
+    artist_credits: ArtistCreditStatistics
+    song_analysis: SongAnalysis
 
 
 class AnnIdBulkLinkedIds(BaseModel):
