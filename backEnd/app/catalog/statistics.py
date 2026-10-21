@@ -215,12 +215,8 @@ def build_statistics(catalog: Catalog) -> DatabaseStatsPayload:
             songs_without_links += 1
 
     max_length_seconds = max(length_counts) if length_counts else 0
-    songs_by_length = [
-        length_counts.get(seconds, 0) for seconds in range(max_length_seconds + 1)
-    ]
-    songs_per_anime_counts = Counter(
-        len(rows) for rows in songs_by_ann.values()
-    )
+    songs_by_length = [length_counts.get(seconds, 0) for seconds in range(max_length_seconds + 1)]
+    songs_per_anime_counts = Counter(len(rows) for rows in songs_by_ann.values())
     songs_per_anime = {
         str(song_count): anime_count
         for song_count, anime_count in sorted(songs_per_anime_counts.items())
@@ -292,9 +288,7 @@ def build_statistics(catalog: Catalog) -> DatabaseStatsPayload:
             "songs_without_links": songs_without_links,
             "anime_without_genre": sum(1 for ann_id in anime_ids if ann_id not in genres_by_ann_id),
             "anime_without_tag": sum(1 for ann_id in anime_ids if ann_id not in tags_by_ann_id),
-            "anime_without_season": sum(
-                1 for anime in anime_by_id.values() if not anime.anime_vintage
-            ),
+            "anime_without_season": sum(1 for anime in anime_by_id.values() if not anime.anime_vintage),
         },
     }
     return database_stats

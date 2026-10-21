@@ -147,10 +147,15 @@ def to_search_query(query: schemas.SongSelectionRequest, catalog: Catalog) -> in
             )
             limit = 500
         case schemas.ArtistIdSearchRequest():
-            criteria = internal.ArtistIdCriteria(tuple(query.artist_ids), _credit_options(query))
+            criteria = internal.ArtistIdCriteria(
+                tuple(query.artist_ids), _credit_options(query), id_match=query.id_match
+            )
         case schemas.ComposerIdSearchRequest():
             criteria = internal.ComposerIdCriteria(
-                tuple(query.composer_ids), _credit_options(query), query.arrangement
+                tuple(query.composer_ids),
+                _credit_options(query),
+                query.arrangement,
+                id_match=query.id_match,
             )
         case schemas.AnnIdSearchRequest():
             criteria = internal.ExternalIdCriteria("ann", (query.annId,))

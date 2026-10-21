@@ -178,11 +178,8 @@ def record_request(
             payload["reason"] = reason
         if errors is not None:
             payload["errors"] = errors
-    elif result_count is not None or duration_ms is not None:
-        payload["result"] = {
-            "count": result_count if result_count is not None else 0,
-            "duration_ms": duration_ms if duration_ms is not None else 0,
-        }
+    elif result_count is not None:
+        payload["result"] = {"count": result_count}
 
     if duration_ms is not None:
         payload["duration_ms"] = duration_ms
@@ -220,9 +217,6 @@ def finish_request(scope: Scope, http_status: int, duration_ms: int) -> None:
         if previous_status != http_status:
             payload.pop("errors", None)
             payload["reason"] = "Internal server error" if http_status >= 500 else "Request failed"
-    elif "result" in payload:
-        # Keep the existing successful-result field for log feed consumers.
-        payload["result"]["duration_ms"] = duration_ms
 
     _append_event(payload)
 

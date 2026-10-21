@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from typing import NamedTuple
 
 from catalog.models import Catalog, CreditPair, Credits, Song
+from search.models import IdMatch
 
 
 class CreditTarget(NamedTuple):
@@ -13,6 +14,9 @@ class CreditTarget(NamedTuple):
     # Used to check credit overlap and cap the required member count, so nested
     # subgroups do not count as single members. Direct credits remain unexpanded.
     members_flat: frozenset[int]
+
+
+CreditTargetGroups = list[list[CreditTarget]]
 
 
 # Artist IDs for groups that have vocalist line-ups, but some songs credit the
@@ -41,14 +45,15 @@ LINE_UP_EXCEPTIONS = frozenset(
 def build_artist_credit_targets(
     catalog: Catalog,
     artist_ids: Sequence[int],
-) -> list[CreditTarget]:
-    """Precompute flattened vocalist line-ups for matched artist IDs (once per search)."""
-    targets: list[CreditTarget] = []
+) -> CreditTargetGroups:
+    """Keep each requested artist's alternative vocalist line-ups together."""
+    targets: CreditTargetGroups = []
 
-    for artist_id in artist_ids:
+    for artist_id in dict.fromkeys(artist_ids):
         line_ups: list[Credits] = [((artist_id, -1),)]
         artist = catalog.artists_by_id.get(artist_id)
         if not artist:
+            targets.append([])
             continue
 
         if artist.line_ups:
@@ -60,8 +65,7 @@ def build_artist_credit_targets(
             if artist_id in LINE_UP_EXCEPTIONS:
                 line_ups.append(((artist_id, -1),))
 
-        for line_up in line_ups:
-            targets.append(CreditTarget(catalog.credits.flatten(line_up)))
+        targets.append([CreditTarget(catalog.credits.flatten(line_up)) for line_up in line_ups])
 
     return targets
 
@@ -69,8 +73,8 @@ def build_artist_credit_targets(
 def build_composer_credit_targets(
     catalog: Catalog,
     composer_ids: Sequence[int],
-) -> list[CreditTarget]:
-    """Precompute flattened composer line-ups for matched composer IDs (once per search)."""
+) -> CreditTargetGroups:
+    """Keep each requested composer's alternative line-ups together."""
 
     # TODO: Composer and arranger searches currently consider every group line-up.
     # Ideally they should use only line-ups whose type is `composers`, but many
@@ -79,42 +83,106 @@ def build_composer_credit_targets(
     # members. Prefer composer line-ups when available and retain vocalist line-ups
     # only as a fallback until the source data has been fully curated.
 
-    targets: list[CreditTarget] = []
+    targets: CreditTargetGroups = []
 
-    for composer_id in composer_ids:
+    for composer_id in dict.fromkeys(composer_ids):
         line_ups: list[Credits] = [((composer_id, -1),)]
         artist = catalog.artists_by_id.get(composer_id)
         if not artist:
+            targets.append([])
             continue
 
         if artist.line_ups:
             line_ups = [line_up.members for line_up in artist.line_ups]
             line_ups.append(((composer_id, -1),))
 
-        for line_up in line_ups:
-            targets.append(CreditTarget(catalog.credits.flatten(line_up)))
+        targets.append([CreditTarget(catalog.credits.flatten(line_up)) for line_up in line_ups])
 
     return targets
 
 
 def _credits_match_targets(
     song_credits_flat: frozenset[int],
-    credit_targets: list[CreditTarget],
+    credit_targets: CreditTargetGroups,
+    group_granularity: int,
+    max_other_artist: int,
+    id_match: IdMatch = "any",
+) -> bool:
+    """Preserve per-target extra-person limits for OR; combine selected matches for AND."""
+    if id_match == "all":
+        return _credits_match_all_targets(
+            song_credits_flat, credit_targets, group_granularity, max_other_artist
+        )
+
+    for group in credit_targets:
+        for target in group:
+            present_artist = len(song_credits_flat & target.members_flat)
+            if present_artist < 1:
+                continue
+            additional_artist = len(song_credits_flat - target.members_flat)
+            if (
+                additional_artist <= max_other_artist
+                # Nested subgroups must not lower a threshold measured in people.
+                and present_artist >= min(group_granularity, len(target.members_flat))
+            ):
+                return True
+
+    return False
+
+
+def _credits_match_all_targets(
+    song_credits_flat: frozenset[int],
+    target_groups: CreditTargetGroups,
     group_granularity: int,
     max_other_artist: int,
 ) -> bool:
-    """True if song credits overlap any search target enough for group_granularity rules."""
-    for target in credit_targets:
-        present_artist = len(song_credits_flat & target.members_flat)
-        if present_artist < 1:
+    """Match every requested ID, choosing one qualifying line-up per ID."""
+    if not target_groups:
+        return False
+
+    covered: frozenset[int] = frozenset()
+    choices: list[list[frozenset[int]]] = []
+    for targets in target_groups:
+        overlaps: set[frozenset[int]] = set()
+        for target in targets:
+            overlap = song_credits_flat & target.members_flat
+            if overlap and len(overlap) >= min(group_granularity, len(target.members_flat)):
+                overlaps.add(overlap)
+        if not overlaps:
+            return False
+
+        # A smaller qualifying roster cannot cover more of this song's people.
+        maximal = [
+            overlap
+            for overlap in overlaps
+            if not any(overlap < other for other in overlaps)
+        ]
+        if len(maximal) == 1:
+            covered |= maximal[0]
+        else:
+            choices.append(sorted(maximal, key=len, reverse=True))
+
+    # All IDs qualify. Only ambiguous historical line-ups need a combination search.
+    choices.sort(key=len)
+    remaining = [frozenset() for _ in range(len(choices) + 1)]
+    for index in reversed(range(len(choices))):
+        remaining[index] = remaining[index + 1].union(*choices[index])
+
+    pending = [(0, covered)]
+    seen: set[tuple[int, frozenset[int]]] = set()
+    while pending:
+        index, matched = pending.pop()
+        if (index, matched) in seen:
             continue
-        additional_artist = len(song_credits_flat - target.members_flat)
-        if (
-            additional_artist <= max_other_artist
-            # Nested subgroups must not lower a threshold measured in people.
-            and present_artist >= min(group_granularity, len(target.members_flat))
-        ):
+        seen.add((index, matched))
+        if len(song_credits_flat - matched) <= max_other_artist:
             return True
+        if (
+            index == len(choices)
+            or len(song_credits_flat - matched - remaining[index]) > max_other_artist
+        ):
+            continue
+        pending.extend((index + 1, matched | roster) for roster in reversed(choices[index]))
 
     return False
 
@@ -122,9 +190,10 @@ def _credits_match_targets(
 def check_meets_artists_requirements(
     catalog: Catalog,
     song: Song,
-    credit_targets: list[CreditTarget],
+    credit_targets: CreditTargetGroups,
     group_granularity: int,
     max_other_artist: int,
+    id_match: IdMatch = "any",
 ) -> bool:
     """True if the song's credited performers satisfy the artist search constraints."""
     return _credits_match_targets(
@@ -132,16 +201,18 @@ def check_meets_artists_requirements(
         credit_targets,
         group_granularity,
         max_other_artist,
+        id_match,
     )
 
 
 def check_meets_composers_requirements(
     catalog: Catalog,
     song: Song,
-    credit_targets: list[CreditTarget],
+    credit_targets: CreditTargetGroups,
     arrangement: bool,
     group_granularity: int,
     max_other_artist: int,
+    id_match: IdMatch = "any",
 ) -> bool:
     """True if the song's composer/arranger credits satisfy the composer search constraints."""
     song_composers: list[CreditPair] = []
@@ -155,6 +226,7 @@ def check_meets_composers_requirements(
         credit_targets,
         group_granularity,
         max_other_artist,
+        id_match,
     )
 
 

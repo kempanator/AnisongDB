@@ -5,6 +5,8 @@ from typing import Literal
 
 from search.filters import SongFilters
 
+IdMatch = Literal["any", "all"]
+
 
 @dataclass(frozen=True)
 class TextSearchFilter:
@@ -51,6 +53,7 @@ class ExternalIdCriteria:
 class ArtistIdCriteria:
     ids: tuple[int, ...]
     options: CreditSearchOptions = field(default_factory=CreditSearchOptions)
+    id_match: IdMatch = "any"
 
 
 @dataclass(frozen=True)
@@ -58,6 +61,7 @@ class ComposerIdCriteria:
     ids: tuple[int, ...]
     options: CreditSearchOptions = field(default_factory=CreditSearchOptions)
     arrangement: bool = True
+    id_match: IdMatch = "any"
 
 
 @dataclass(frozen=True)

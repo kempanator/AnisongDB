@@ -38,11 +38,7 @@ from search.text_matching import has_search_text
 router = APIRouter()
 
 
-def _search_response(
-    request: Request,
-    query: SongSelectionRequest,
-    catalog: Catalog,
-) -> list[FormattedSong]:
+def _search_response(request: Request, query: SongSelectionRequest, catalog: Catalog) -> list[FormattedSong]:
     try:
         search_query = to_search_query(query, catalog)
     except HTTPException as error:
@@ -65,11 +61,7 @@ def get_50_random_songs(catalog: CatalogDependency):
 
 # Return n random songs
 @router.post("/api/get_n_random_songs", response_model=list[SongEntry])
-def get_n_random_songs(
-    query: GetNSongsRequest,
-    request: Request,
-    catalog: CatalogDependency,
-):
+def get_n_random_songs(query: GetNSongsRequest, request: Request, catalog: CatalogDependency):
     return _search_response(request, query, catalog)
 
 
@@ -81,11 +73,7 @@ def get_n_random_songs(
         503: {"description": "Song name/artist/composer text search is disabled during ranked time"}
     },
 )
-def search_request(
-    query: SearchRequest,
-    request: Request,
-    catalog: CatalogDependency,
-):
+def search_request(query: SearchRequest, request: Request, catalog: CatalogDependency):
     # During ranked, song name / artist / composer text search is disabled.
     if is_ranked_time() and (
         has_search_text(query.song_name_search_filter)
@@ -105,84 +93,78 @@ def search_request(
 
 # Return songs from a list of artist IDs
 @router.post("/api/artist_ids_request", response_model=list[SongEntry])
-def artist_ids_request(
-    query: ArtistIdSearchRequest,
-    request: Request,
-    catalog: CatalogDependency,
-):
+def artist_ids_request(query: ArtistIdSearchRequest, request: Request, catalog: CatalogDependency):
     return _search_response(request, query, catalog)
 
 
 # Return songs from a list of composer IDs
 @router.post("/api/composer_ids_request", response_model=list[SongEntry])
-def composer_ids_request(
-    query: ComposerIdSearchRequest,
-    request: Request,
-    catalog: CatalogDependency,
-):
+def composer_ids_request(query: ComposerIdSearchRequest, request: Request, catalog: CatalogDependency):
     return _search_response(request, query, catalog)
 
 
+# Return songs from a single ANN ID (keep this, older clients still request it)
 @router.post("/api/annId_request", response_model=list[SongEntry], deprecated=True)
 def annId_request(query: AnnIdSearchRequest, request: Request, catalog: CatalogDependency):
     return _search_response(request, query, catalog)
 
 
+# Return songs from a list of ANN IDs
 @router.post("/api/ann_ids_request", response_model=list[SongEntry])
 def ann_ids_request(query: AnnIdsSearchRequest, request: Request, catalog: CatalogDependency):
     return _search_response(request, query, catalog)
 
 
+# Return songs from a list of MAL IDs
 @router.post("/api/mal_ids_request", response_model=list[SongEntry])
 def mal_ids_request(query: MalIdsSearchRequest, request: Request, catalog: CatalogDependency):
     return _search_response(request, query, catalog)
 
 
+# Return songs from a list of AniList IDs
 @router.post("/api/anilist_ids_request", response_model=list[SongEntry])
-def anilist_ids_request(
-    query: AnilistIdsSearchRequest,
-    request: Request,
-    catalog: CatalogDependency,
-):
+def anilist_ids_request(query: AnilistIdsSearchRequest, request: Request, catalog: CatalogDependency):
     return _search_response(request, query, catalog)
 
 
+# Return songs from a list of Kitsu IDs
 @router.post("/api/kitsu_ids_request", response_model=list[SongEntry])
 def kitsu_ids_request(query: KitsuIdsSearchRequest, request: Request, catalog: CatalogDependency):
     return _search_response(request, query, catalog)
 
 
+# Return songs from a list of AniDB IDs
 @router.post("/api/anidb_ids_request", response_model=list[SongEntry])
 def anidb_ids_request(query: AnidbIdsSearchRequest, request: Request, catalog: CatalogDependency):
     return _search_response(request, query, catalog)
 
 
+# Return songs from a list of ANN song IDs
 @router.post("/api/ann_song_ids_request", response_model=list[SongEntry])
-def ann_song_ids_request(
-    query: AnnSongIdsSearchRequest,
-    request: Request,
-    catalog: CatalogDependency,
-):
+def ann_song_ids_request(query: AnnSongIdsSearchRequest, request: Request, catalog: CatalogDependency):
     return _search_response(request, query, catalog)
 
 
+# Return songs from a list of AMQ song IDs
 @router.post("/api/amq_song_ids_request", response_model=list[SongEntry])
-def amq_song_ids_request(
-    query: AmqSongIdsSearchRequest,
-    request: Request,
-    catalog: CatalogDependency,
-):
+def amq_song_ids_request( query: AmqSongIdsSearchRequest, request: Request, catalog: CatalogDependency):
     return _search_response(request, query, catalog)
 
 
 # Return all songs from a specific season
 @router.post("/api/season_request", response_model=list[SongEntry])
-def season_request(
-    query: SeasonSearchRequest,
-    request: Request,
-    catalog: CatalogDependency,
-):
+def season_request(query: SeasonSearchRequest, request: Request, catalog: CatalogDependency):
     return _search_response(request, query, catalog)
+
+
+@router.get("/api/genres", response_model=list[str])
+def get_genres(catalog: CatalogDependency):
+    return sorted(catalog.genre_by_lower.values(), key=str.casefold)
+
+
+@router.get("/api/tags", response_model=list[str])
+def get_tags(catalog: CatalogDependency):
+    return sorted(catalog.tag_by_lower.values(), key=str.casefold)
 
 
 # Return every possible songartist string for autocompletion
@@ -245,11 +227,7 @@ def catalog_dump(request: Request, cached: CachedResponsesDependency):
 
 
 # Return a .json dict containing every key annId value linked_ids
-@router.get(
-    "/api/annid_linked_ids",
-    response_model=dict[int, AnnIdLinkedAnimeEntry],
-    response_model_by_alias=False,
-)
+@router.get("/api/annid_linked_ids", response_model=dict[int, AnnIdLinkedAnimeEntry], response_model_by_alias=False)
 def annid_linked_ids(request: Request, cached: CachedResponsesDependency):
     return gzip_json_response(request, cached.annid_linked_ids)
 

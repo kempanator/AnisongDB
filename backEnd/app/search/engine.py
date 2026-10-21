@@ -16,6 +16,7 @@ from search.models import (
     ComposerSearchFilter,
     CreditSearchOptions,
     ExternalIdCriteria,
+    IdMatch,
     RandomCriteria,
     SearchQuery,
     SeasonCriteria,
@@ -36,10 +37,17 @@ def search_songs(catalog: Catalog, query: SearchQuery) -> list[Song]:
         case ExternalIdCriteria():
             songs = _external_id_candidates(catalog, criteria, query.filters)
         case ArtistIdCriteria():
-            songs = _artist_candidates(catalog, criteria.ids, criteria.options, query.filters)
+            songs = _artist_candidates(
+                catalog, criteria.ids, criteria.options, query.filters, id_match=criteria.id_match
+            )
         case ComposerIdCriteria():
             songs = _composer_candidates(
-                catalog, criteria.ids, criteria.options, criteria.arrangement, query.filters
+                catalog,
+                criteria.ids,
+                criteria.options,
+                criteria.arrangement,
+                query.filters,
+                id_match=criteria.id_match,
             )
         case SeasonCriteria():
             songs = _season_candidates(catalog, criteria.season, query.filters)
@@ -295,17 +303,21 @@ def _artist_candidates(
     artist_ids: Sequence[int],
     options: CreditSearchOptions,
     song_filters: SongFilters,
+    *,
+    id_match: IdMatch = "any",
 ) -> SongMap:
+    targets = credit_matching.build_artist_credit_targets(catalog, artist_ids)
+    if id_match == "all" and any(not group for group in targets):
+        return {}
     song_ids = _artist_song_ids(
         catalog,
         credit_matching.expand_search_artist_ids(catalog, artist_ids, options.group_granularity),
     )
-    targets = credit_matching.build_artist_credit_targets(catalog, artist_ids)
     return {
         song_id: song
         for song_id, song in _songs_by_ids(catalog, song_ids, song_filters).items()
         if credit_matching.check_meets_artists_requirements(
-            catalog, song, targets, options.group_granularity, options.max_other_artist
+            catalog, song, targets, options.group_granularity, options.max_other_artist, id_match
         )
     }
 
@@ -316,18 +328,28 @@ def _composer_candidates(
     options: CreditSearchOptions,
     arrangement: bool,
     song_filters: SongFilters,
+    *,
+    id_match: IdMatch = "any",
 ) -> SongMap:
+    targets = credit_matching.build_composer_credit_targets(catalog, composer_ids)
+    if id_match == "all" and any(not group for group in targets):
+        return {}
     song_ids = _composer_song_ids(
         catalog,
         credit_matching.expand_search_artist_ids(catalog, composer_ids, options.group_granularity),
         arrangement,
     )
-    targets = credit_matching.build_composer_credit_targets(catalog, composer_ids)
     return {
         song_id: song
         for song_id, song in _songs_by_ids(catalog, song_ids, song_filters).items()
         if credit_matching.check_meets_composers_requirements(
-            catalog, song, targets, arrangement, options.group_granularity, options.max_other_artist
+            catalog,
+            song,
+            targets,
+            arrangement,
+            options.group_granularity,
+            options.max_other_artist,
+            id_match,
         )
     }
 

@@ -6,7 +6,6 @@ from pydantic import BaseModel
 
 class LogResult(BaseModel):
     count: int
-    duration_ms: int | None = None
 
 
 class LogEvent(BaseModel):

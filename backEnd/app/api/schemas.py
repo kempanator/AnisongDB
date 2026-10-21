@@ -323,11 +323,13 @@ class SearchRequest(SongSelectionRequest):
 
 class ArtistIdSearchRequest(SongSelectionRequest, CreditSearchOptions):
     artist_ids: SearchIdList
+    id_match: Literal["any", "all"] = "any"
 
 
 class ComposerIdSearchRequest(SongSelectionRequest, CreditSearchOptions):
     composer_ids: SearchIdList
     arrangement: bool = True
+    id_match: Literal["any", "all"] = "any"
 
 
 class AnnIdSearchRequest(SongSelectionRequest):
