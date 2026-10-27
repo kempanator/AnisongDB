@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import HTTPException
+from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 from starlette.requests import Request
 from starlette.types import Scope
@@ -116,8 +117,10 @@ def _request_summary(body_data: Any) -> str:
         ("composer_search_filter", "composer"),
     ):
         filt = body_data.get(key)
-        if isinstance(filt, dict) and filt.get("search"):
-            search_bits.append((label, filt["search"]))
+        if isinstance(filt, dict):
+            search = filt.get("search")
+            if isinstance(search, str) and search:
+                search_bits.append((label, search))
     if search_bits:
         searches = [search for _, search in search_bits]
         if len(searches) == 4 and len(set(searches)) == 1:
@@ -222,6 +225,9 @@ def finish_request(scope: Scope, http_status: int, duration_ms: int) -> None:
 
 
 def _append_event(payload: dict[str, Any]) -> None:
+    # Pydantic error contexts can contain ValueError objects. Store a JSON-safe
+    # snapshot once so a rejected request cannot break subsequent feed polls.
+    payload = jsonable_encoder(payload, custom_encoder={Exception: str})
     summary = _request_summary(payload["body"])
     if summary:
         if "duration_ms" in payload:
